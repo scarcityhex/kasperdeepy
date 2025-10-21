@@ -23,8 +23,15 @@ interface PolicyAssets {
     assets: NFTAsset[];
 }
 
+interface SavedAddress {
+    address: string;
+    label: string;
+    addedAt: any;
+    lastSyncedAt: any;
+}
+
 export default function MyStuff() {
-    const [address, setAddress] = useState("");
+    const [connectedAddress, setConnectedAddress] = useState("");
     const [isConnected, setIsConnected] = useState(false);
     const [network, setNetwork] = useState<number | undefined>();
     const [loading, setLoading] = useState(false);
@@ -33,27 +40,155 @@ export default function MyStuff() {
     const [error, setError] = useState<string | null>(null);
     const [selectedPolicy, setSelectedPolicy] = useState<string>('ALL');
     const [dataSource, setDataSource] = useState<'cache' | 'blockchain' | null>(null);
+    const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+    const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
+    const [newAddressInput, setNewAddressInput] = useState("");
+    const [newAddressLabel, setNewAddressLabel] = useState("");
+    const [showAddAddressForm, setShowAddAddressForm] = useState(false);
     const { user } = useAuth();
 
     const onWalletConnected = (addr: string, connected: boolean, netId: number | undefined) => {
-        setAddress(addr);
+        setConnectedAddress(addr);
         setIsConnected(connected);
         setNetwork(netId);
         
         // Limpar dados quando desconectar
         if (!connected) {
-            setUserNFTs([]);
-            setError(null);
-            setDataSource(null);
+            setConnectedAddress("");
         }
     };
 
-    // Carregar NFTs do cache automaticamente quando usuário estiver autenticado
+    // Carregar endereços salvos e NFTs do cache automaticamente
     useEffect(() => {
         if (user) {
+            loadSavedAddresses();
             loadCachedNFTs();
         }
     }, [user]);
+
+    // Recarregar NFTs quando endereço selecionado mudar
+    useEffect(() => {
+        if (user && selectedAddress) {
+            loadCachedNFTs();
+        }
+    }, [selectedAddress]);
+
+    const loadSavedAddresses = async () => {
+        if (!user) return;
+
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/NFT/UserAddresses', {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setSavedAddresses(data.addresses || []);
+            }
+        } catch (error) {
+            console.error('Error loading saved addresses:', error);
+        }
+    };
+
+    const addAddress = async () => {
+        if (!user || !newAddressInput) return;
+
+        if (!newAddressInput.startsWith('addr1')) {
+            setError('Invalid Cardano address format. Must start with addr1');
+            return;
+        }
+
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/NFT/UserAddresses', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    address: newAddressInput,
+                    label: newAddressLabel || undefined
+                })
+            });
+
+            if (response.ok) {
+                await loadSavedAddresses();
+                setNewAddressInput("");
+                setNewAddressLabel("");
+                setShowAddAddressForm(false);
+                setError(null);
+            } else {
+                const data = await response.json();
+                setError(data.error || 'Failed to add address');
+            }
+        } catch (error) {
+            console.error('Error adding address:', error);
+            setError('Error adding address');
+        }
+    };
+
+    const removeAddress = async (address: string) => {
+        if (!user) return;
+
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch(`/api/NFT/UserAddresses?address=${encodeURIComponent(address)}`, {
+                method: 'DELETE',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (response.ok) {
+                await loadSavedAddresses();
+                if (selectedAddress === address) {
+                    setSelectedAddress(null);
+                }
+            }
+        } catch (error) {
+            console.error('Error removing address:', error);
+        }
+    };
+
+    const saveConnectedAddress = async () => {
+        if (!connectedAddress || !user) return;
+
+        setError(null);
+
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/NFT/UserAddresses', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    address: connectedAddress,
+                    label: 'Connected Wallet'
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                await loadSavedAddresses();
+                // Usar o endereço convertido retornado pela API
+                if (data.address && data.address.address) {
+                    setSelectedAddress(data.address.address);
+                }
+            } else {
+                const data = await response.json();
+                setError(data.error || 'Failed to save connected address');
+            }
+        } catch (error) {
+            console.error('Error saving connected address:', error);
+            setError('Error saving connected address');
+        }
+    };
 
     const loadCachedNFTs = async () => {
         if (!user) return;
@@ -63,7 +198,11 @@ export default function MyStuff() {
 
         try {
             const token = await user.getIdToken();
-            const response = await fetch('/api/NFT/UserNFTs', {
+            const url = selectedAddress 
+                ? `/api/NFT/UserNFTs?address=${encodeURIComponent(selectedAddress)}`
+                : '/api/NFT/UserNFTs';
+            
+            const response = await fetch(url, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -92,8 +231,10 @@ export default function MyStuff() {
     };
 
     const syncWithBlockchain = async () => {
-        if (!address || !user) {
-            alert("Wallet not connected or user not authenticated.");
+        const addressToSync = selectedAddress || connectedAddress;
+        
+        if (!addressToSync || !user) {
+            alert("No address selected or user not authenticated.");
             return;
         }
 
@@ -108,7 +249,7 @@ export default function MyStuff() {
 
             for (const policyId of POLICY_IDS) {
                 try {
-                    const response = await fetch(`/api/NFT/blockfrost/UserAssets?address=${address}&policyId=${policyId}&sync=true`, {
+                    const response = await fetch(`/api/NFT/blockfrost/UserAssets?address=${addressToSync}&policyId=${policyId}&sync=true`, {
                         headers: {
                             Authorization: `Bearer ${token}`,
                         },
@@ -206,13 +347,130 @@ export default function MyStuff() {
                     )}
                 </div>
 
-                {/* Connected Address Display */}
-                {isConnected && address && (
-                    <div className="mb-8 p-4 bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-700">
-                        <p className="text-gray-400 text-sm mb-1">Connected Address</p>
-                        <p className="text-xs font-mono break-all">{address}</p>
+                {/* Address Management */}
+                <div className="mb-8 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-2xl font-semibold">My Addresses</h2>
+                        <button
+                            onClick={() => setShowAddAddressForm(!showAddAddressForm)}
+                            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm font-medium transition-colors"
+                        >
+                            ➕ Add Address
+                        </button>
                     </div>
-                )}
+
+                    {/* Add Address Form */}
+                    {showAddAddressForm && (
+                        <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700">
+                            <h3 className="text-lg font-semibold mb-4">Add New Address</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-2">Address (addr1...)</label>
+                                    <input
+                                        type="text"
+                                        value={newAddressInput}
+                                        onChange={(e) => setNewAddressInput(e.target.value)}
+                                        placeholder="addr1..."
+                                        className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-2">Label (optional)</label>
+                                    <input
+                                        type="text"
+                                        value={newAddressLabel}
+                                        onChange={(e) => setNewAddressLabel(e.target.value)}
+                                        placeholder="My Wallet"
+                                        className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                                    />
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={addAddress}
+                                        className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg text-sm font-medium transition-colors"
+                                    >
+                                        Save Address
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowAddAddressForm(false);
+                                            setNewAddressInput("");
+                                            setNewAddressLabel("");
+                                            setError(null);
+                                        }}
+                                        className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Connected Wallet */}
+                    {isConnected && connectedAddress && (
+                        <div className="bg-green-900/20 backdrop-blur-sm p-4 rounded-lg border border-green-700">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-green-400 text-sm mb-1 font-semibold">🟢 Connected Wallet</p>
+                                    <p className="text-xs font-mono break-all">{connectedAddress}</p>
+                                </div>
+                                {!savedAddresses.some(addr => addr.address === connectedAddress) && (
+                                    <button
+                                        onClick={saveConnectedAddress}
+                                        className="px-3 py-1 bg-green-500 hover:bg-green-600 rounded text-xs font-medium transition-colors"
+                                    >
+                                        💾 Save
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Saved Addresses */}
+                    {savedAddresses.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {savedAddresses.map((addr) => (
+                                <div
+                                    key={addr.address}
+                                    className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                                        selectedAddress === addr.address
+                                            ? 'bg-blue-900/30 border-blue-500'
+                                            : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
+                                    }`}
+                                    onClick={() => setSelectedAddress(addr.address)}
+                                >
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div className="flex-1">
+                                            <p className="font-semibold text-sm mb-1">{addr.label}</p>
+                                            <p className="text-xs font-mono text-gray-400 break-all">{addr.address}</p>
+                                        </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                removeAddress(addr.address);
+                                            }}
+                                            className="ml-2 px-2 py-1 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded text-xs transition-colors"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
+                                    {selectedAddress === addr.address && (
+                                        <div className="mt-2 pt-2 border-t border-blue-500/30">
+                                            <p className="text-xs text-blue-400">✓ Selected</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {savedAddresses.length === 0 && !isConnected && (
+                        <div className="text-center py-8 bg-gray-800/30 rounded-lg border border-gray-700">
+                            <p className="text-gray-400">No saved addresses yet. Connect a wallet or add an address manually.</p>
+                        </div>
+                    )}
+                </div>
 
                 {/* Error Message */}
                 {error && (

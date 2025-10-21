@@ -248,14 +248,24 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          // Adicionar NFT ao array do usuário
+          // Adicionar NFT ao array do usuário com associação ao endereço
           const userData = userDocSnap.data() || {};
+          const nftsByAddress = userData.nftsByAddress || {};
+          
+          if (!nftsByAddress[address]) {
+            nftsByAddress[address] = {};
+          }
+          
           const nftField = `${collectionName.toLowerCase()}NFTs`;
-          const userNFTs = userData[nftField] || [];
+          if (!nftsByAddress[address][nftField]) {
+            nftsByAddress[address][nftField] = [];
+          }
 
-          if (!userNFTs.includes(normalizedId)) {
+          if (!nftsByAddress[address][nftField].includes(normalizedId)) {
+            nftsByAddress[address][nftField].push(normalizedId);
+            
             transaction.update(userDocRef, {
-              [nftField]: admin.firestore.FieldValue.arrayUnion(normalizedId)
+              nftsByAddress: nftsByAddress
             });
           }
         });

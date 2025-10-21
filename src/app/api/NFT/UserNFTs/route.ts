@@ -10,6 +10,8 @@ const COLLECTION_MAPPING: Record<string, string> = {
 
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const address = searchParams.get('address'); // Endereço específico (opcional)
     const authHeader = request.headers.get('authorization');
 
     if (!authHeader) {
@@ -36,47 +38,61 @@ export async function GET(request: NextRequest) {
     }
 
     const userData = userDocSnap.data()!;
+    const nftsByAddress = userData.nftsByAddress || {};
     const allNFTs: any[] = [];
 
-    // Para cada coleção, buscar os NFTs do usuário
-    for (const [policyId, collectionName] of Object.entries(COLLECTION_MAPPING)) {
-      const nftField = `${collectionName.toLowerCase()}NFTs`;
-      const userNFTIds = userData[nftField] || [];
+    // Determinar quais endereços processar
+    const addressesToProcess = address ? [address] : Object.keys(nftsByAddress);
 
-      if (userNFTIds.length === 0) continue;
-
-      // Buscar dados completos de cada NFT
-      const nftPromises = userNFTIds.map(async (nftId: string) => {
-        try {
-          const nftDoc = await db.collection(collectionName).doc(nftId).get();
-          if (nftDoc.exists) {
-            const nftData = nftDoc.data()!;
-            return {
-              id: nftId,
-              assetId: nftData.assetId,
-              assetName: nftData.assetName,
-              policyId: nftData.policyId || policyId,
-              metadata: nftData.metadata || {},
-              ownedSince: nftData.ownedSince,
-              collectionName
-            };
-          }
-          return null;
-        } catch (error) {
-          console.error(`Error fetching NFT ${nftId}:`, error);
-          return null;
-        }
-      });
-
-      const nfts = await Promise.all(nftPromises);
-      const validNFTs = nfts.filter(nft => nft !== null);
+    for (const addr of addressesToProcess) {
+      const addressNFTs = nftsByAddress[addr] || {};
       
-      if (validNFTs.length > 0) {
-        allNFTs.push({
-          policyId,
-          collectionName,
-          assets: validNFTs
+      for (const [policyId, collectionName] of Object.entries(COLLECTION_MAPPING)) {
+        const nftField = `${collectionName.toLowerCase()}NFTs`;
+        const userNFTIds = addressNFTs[nftField] || [];
+
+        if (userNFTIds.length === 0) continue;
+
+        // Buscar dados completos de cada NFT
+        const nftPromises = userNFTIds.map(async (nftId: string) => {
+          try {
+            const nftDoc = await db.collection(collectionName).doc(nftId).get();
+            if (nftDoc.exists) {
+              const nftData = nftDoc.data()!;
+              return {
+                id: nftId,
+                assetId: nftData.assetId,
+                assetName: nftData.assetName,
+                policyId: nftData.policyId || policyId,
+                metadata: nftData.metadata || {},
+                ownedSince: nftData.ownedSince,
+                collectionName,
+                address: addr
+              };
+            }
+            return null;
+          } catch (error) {
+            console.error(`Error fetching NFT ${nftId}:`, error);
+            return null;
+          }
         });
+
+        const nfts = await Promise.all(nftPromises);
+        const validNFTs = nfts.filter(nft => nft !== null);
+        
+        if (validNFTs.length > 0) {
+          // Verificar se já existe entrada para esta policy
+          const existingEntry = allNFTs.find(entry => entry.policyId === policyId);
+          if (existingEntry) {
+            existingEntry.assets.push(...validNFTs);
+          } else {
+            allNFTs.push({
+              policyId,
+              collectionName,
+              assets: validNFTs
+            });
+          }
+        }
       }
     }
 
@@ -85,7 +101,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       totalNFTs,
-      collections: allNFTs
+      collections: allNFTs,
+      addressesProcessed: addressesToProcess
     }, { status: 200 });
 
   } catch (error) {
