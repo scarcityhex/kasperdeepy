@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import Header from "@/components/layout/Header";
 import AdaWalletConnector from './components/ada/AdaWalletConnector';
+import Modal from '@/components/ui/Modal';
+import Image from 'next/image';
 
 // Coleções padrão
 interface Collection {
@@ -82,6 +84,10 @@ export default function MyStuff() {
     const [showAddCollectionForm, setShowAddCollectionForm] = useState(false);
     const [newCollectionPolicyId, setNewCollectionPolicyId] = useState("");
     const [newCollectionName, setNewCollectionName] = useState("");
+    
+    // Estados para modais de imagens
+    const [showItemsModal, setShowItemsModal] = useState(false);
+    const [showRacesModal, setShowRacesModal] = useState(false);
     
     const { user } = useAuth();
 
@@ -582,6 +588,7 @@ export default function MyStuff() {
     const policyColors = defaultPolicyColors;
 
     return (
+        <>
         <div className="min-h-screen bg-gradient-to-br from-green-900 via-gray-800 to-yellow-900 text-white">
             <Header />
             
@@ -933,6 +940,37 @@ export default function MyStuff() {
                                 {collections.filter(c => c.enabled).length} of {collections.length} collections enabled
                             </p>
                         </div>
+                        
+                    </div>
+                        
+                        {/* Botões para Modais de Imagens */}
+                        <div className="flex gap-3 mt-4">
+                            <button
+                                onClick={() => setShowItemsModal(true)}
+                                className="flex-1 px-2 py-1 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 rounded-lg font-medium transition-all shadow-lg hover:shadow-purple-500/50 flex items-center justify-center gap-2"
+                            >
+                                <Image
+                                    src="/Ada/CW7800noBG.png"
+                                    alt="Items icon"
+                                    width={50}
+                                    height={50}
+                                    className="w-8 h-8 object-contain"
+                                />
+                                <span>View Items</span>
+                            </button>
+                            <button
+                                onClick={() => setShowRacesModal(true)}
+                                className="flex-1 px-2 py-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 rounded-lg font-medium transition-all shadow-lg hover:shadow-blue-500/50 flex items-center justify-center gap-2"
+                            >
+                                <Image
+                                    src="/Ada/CW6740noBG.png"
+                                    alt="Races icon"
+                                    width={50}
+                                    height={50}
+                                    className="w-8 h-8 object-contain"
+                                />
+                                <span>View Races</span>
+                            </button>
                         </div>
                         </div>
                     </div>
@@ -1184,5 +1222,46 @@ export default function MyStuff() {
                 </div>
             </div>
         </div>
+        
+        {/* Modal de Items */}
+        <Modal
+            isOpen={showItemsModal}
+            onClose={() => setShowItemsModal(false)}
+            size="lg"
+        >
+            <div className="flex flex-col items-center">
+                <h2 className="text-2xl font-bold mb-4">Cardano Warriors - Items</h2>
+                <div className="w-full max-w-full overflow-auto">
+                    <Image
+                        src="/Ada/CWitems.png"
+                        alt="Cardano Warriors Items"
+                        width={1200}
+                        height={800}
+                        className="w-full h-auto rounded-lg"
+                    />
+                </div>
+            </div>
+        </Modal>
+        
+        {/* Modal de Races */}
+        <Modal
+            isOpen={showRacesModal}
+            onClose={() => setShowRacesModal(false)}
+            size="lg"
+        >
+            <div className="flex flex-col items-center">
+                <h2 className="text-2xl font-bold mb-4">Cardano Warriors - Races</h2>
+                <div className="w-full max-w-full overflow-auto">
+                    <Image
+                        src="/Ada/CWraces.png"
+                        alt="Cardano Warriors Races"
+                        width={1200}
+                        height={800}
+                        className="w-full h-auto rounded-lg"
+                    />
+                </div>
+            </div>
+        </Modal>
+        </>
     );
 }
