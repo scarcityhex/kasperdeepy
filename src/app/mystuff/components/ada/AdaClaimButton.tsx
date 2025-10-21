@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import AdaWalletConnector from './AdaWalletConnector';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/app/contexts/AuthContext';
 import axios from 'axios';
 
 interface AdaClaimButtonProps {

@@ -128,9 +128,8 @@ export async function POST(request: NextRequest) {
       }
 
       await db.runTransaction(async (transaction: FirebaseFirestore.Transaction) => {
-        // --- LEITURAS PRIMEIRO ---
         const nftDocSnap = await transaction.get(nftDocRef);
-        const currentUserDocSnap = await transaction.get(userDocRef); // Mova a leitura para o início
+        const currentUserDocSnap = await transaction.get(userDocRef); 
 
         if (!nftDocSnap.exists) {
           throw new Error(`NFT ${normalizedId} não existe dentro da transação.`);
