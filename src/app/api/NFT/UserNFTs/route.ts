@@ -41,31 +41,23 @@ export async function GET(request: NextRequest) {
     const nftsByAddress = userData.nftsByAddress || {};
     const allNFTs: any[] = [];
 
-    console.log('📦 nftsByAddress structure:', JSON.stringify(nftsByAddress, null, 2));
-
     // Determinar quais endereços processar
     const addressesToProcess = address ? [address] : Object.keys(nftsByAddress);
-    console.log('📍 Addresses to process:', addressesToProcess);
 
     for (const addr of addressesToProcess) {
       const addressNFTs = nftsByAddress[addr] || {};
-      console.log(`🔍 Processing address ${addr.substring(0, 20)}...`);
-      console.log(`   NFT fields in address:`, Object.keys(addressNFTs));
       
       // Buscar todas as coleções NFT (campos que terminam com 'NFTs' ou 'nfts')
       const nftFields = Object.keys(addressNFTs).filter(key => 
         key.toLowerCase().endsWith('nfts')
       );
-      console.log(`   Filtered NFT fields:`, nftFields);
       
       for (const nftField of nftFields) {
         const userNFTIds = addressNFTs[nftField] || [];
-        console.log(`   📝 Field "${nftField}" has ${userNFTIds.length} NFTs:`, userNFTIds);
         if (userNFTIds.length === 0) continue;
 
         // Extrair nome da coleção do campo (remove 'NFTs' ou 'nfts' do final, preserva case)
         const extractedName = nftField.replace(/NFTs$/i, '');
-        console.log(`   🏷️  Extracted name from field: "${extractedName}"`);
         
         // Tentar obter policy ID e nome correto do mapeamento
         const policyId = Object.keys(COLLECTION_MAPPING).find(
@@ -81,18 +73,13 @@ export async function GET(request: NextRequest) {
           // Capitalizar primeira letra para coleções customizadas
           collectionName = extractedName.charAt(0).toUpperCase() + extractedName.slice(1);
         }
-        
-        console.log(`   🔑 Policy ID resolved: "${policyId}"`);
-        console.log(`   📁 Collection name to use: "${collectionName}"`);
 
         // Buscar dados completos de cada NFT
-        console.log(`   🔎 Fetching ${userNFTIds.length} NFTs from collection "${collectionName}"...`);
         const nftPromises = userNFTIds.map(async (nftId: string) => {
           try {
             const nftDoc = await db.collection(collectionName).doc(nftId).get();
             if (nftDoc.exists) {
               const nftData = nftDoc.data()!;
-              console.log(`      ✅ Found NFT: ${nftId}`);
               
               // Usar policyId dos dados da NFT se disponível, senão usar o resolvido
               const actualPolicyId = nftData.policyId || policyId;
@@ -108,10 +95,9 @@ export async function GET(request: NextRequest) {
                 address: addr
               };
             }
-            console.log(`      ❌ NFT not found: ${nftId} in collection "${collectionName}"`);
             return null;
           } catch (error) {
-            console.error(`      ⚠️  Error fetching NFT ${nftId}:`, error);
+            console.error(`Error fetching NFT ${nftId} from ${collectionName}:`, error);
             return null;
           }
         });
@@ -120,16 +106,21 @@ export async function GET(request: NextRequest) {
         const validNFTs = nfts.filter(nft => nft !== null);
         
         if (validNFTs.length > 0) {
-          // Verificar se já existe entrada para esta policy
-          const existingEntry = allNFTs.find(entry => entry.policyId === policyId);
-          if (existingEntry) {
-            existingEntry.assets.push(...validNFTs);
-          } else {
-            allNFTs.push({
-              policyId,
-              collectionName,
-              assets: validNFTs
-            });
+          // Agrupar por policyId REAL (dos metadados), não pelo resolvido
+          // Isso separa corretamente coleções customizadas diferentes
+          for (const nft of validNFTs) {
+            const nftPolicyId = nft.policyId;
+            const existingEntry = allNFTs.find(entry => entry.policyId === nftPolicyId);
+            
+            if (existingEntry) {
+              existingEntry.assets.push(nft);
+            } else {
+              allNFTs.push({
+                policyId: nftPolicyId,
+                collectionName,
+                assets: [nft]
+              });
+            }
           }
         }
       }
@@ -137,8 +128,7 @@ export async function GET(request: NextRequest) {
 
     const totalNFTs = allNFTs.reduce((sum, collection) => sum + collection.assets.length, 0);
 
-    console.log(`\n✨ FINAL RESULT: ${totalNFTs} NFTs found across ${allNFTs.length} collections`);
-    console.log(`📊 Collections summary:`, allNFTs.map(c => `${c.collectionName}: ${c.assets.length} NFTs`));
+    console.log(`✅ Loaded ${totalNFTs} NFTs from ${allNFTs.length} collections for user ${userUid}`);
 
     return NextResponse.json({
       success: true,

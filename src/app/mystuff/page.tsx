@@ -42,6 +42,7 @@ interface NFTAsset {
 
 interface PolicyAssets {
     policyId: string;
+    collectionName?: string;
     assets: NFTAsset[];
 }
 
@@ -518,8 +519,19 @@ export default function MyStuff() {
 
     // Função para obter nome da coleção
     const getCollectionName = (policyId: string): string => {
+        // Primeiro tentar encontrar nas collections configuradas
         const collection = collections.find(c => c.policyId === policyId);
-        return collection?.name || `${policyId.substring(0, 8)}...`;
+        if (collection) return collection.name;
+        
+        // Se não encontrou, buscar nos NFTs carregados
+        const nftCollection = userNFTs.find(p => p.policyId === policyId);
+        if (nftCollection?.collectionName) {
+            // Formatar nome da coleção (ex: "Collection_702cbdb0" → "Collection 702cbdb0")
+            return nftCollection.collectionName.replace(/_/g, ' ');
+        }
+        
+        // Fallback: mostrar início do policy ID
+        return `${policyId.substring(0, 8)}...`;
     };
 
     const policyColors = defaultPolicyColors;
@@ -994,17 +1006,19 @@ export default function MyStuff() {
                                                 // Tentar diferentes formatos de URL de imagem
                                                 let imageUrl = asset.metadata?.image;
                                                 
-                                                // Verificar se tem array de files
-                                                if (!imageUrl && asset.metadata?.files && asset.metadata.files.length > 0) {
-                                                    imageUrl = asset.metadata.files[0].src;
-                                                }
-                                                
-                                                // Verificar se tem mediaType image
-                                                if (!imageUrl && asset.metadata?.files) {
+                                                // Se não tem image direta, buscar em files array
+                                                if (!imageUrl && asset.metadata?.files && Array.isArray(asset.metadata.files)) {
+                                                    // Priorizar imagens (png, gif, jpg) sobre vídeos
                                                     const imageFile = asset.metadata.files.find((f: any) => 
-                                                        f.mediaType?.startsWith('image/')
+                                                        f.mediaType?.startsWith('image/') || f.mime?.startsWith('image/')
                                                     );
-                                                    if (imageFile) imageUrl = imageFile.src;
+                                                    
+                                                    if (imageFile) {
+                                                        imageUrl = imageFile.src;
+                                                    } else if (asset.metadata.files.length > 0) {
+                                                        // Se não encontrou imagem, usar primeiro arquivo
+                                                        imageUrl = asset.metadata.files[0].src;
+                                                    }
                                                 }
                                                 
                                                 if (imageUrl) {
