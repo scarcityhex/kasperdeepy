@@ -53,6 +53,12 @@ interface SavedAddress {
     lastSyncedAt: any;
 }
 
+// Função helper para truncar endereços
+const truncateAddress = (address: string, startChars: number = 12, endChars: number = 8): string => {
+    if (address.length <= startChars + endChars) return address;
+    return `${address.substring(0, startChars)}...${address.substring(address.length - endChars)}`;
+};
+
 export default function MyStuff() {
     const [connectedAddress, setConnectedAddress] = useState("");
     const [isConnected, setIsConnected] = useState(false);
@@ -537,12 +543,12 @@ export default function MyStuff() {
     const policyColors = defaultPolicyColors;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+        <div className="min-h-screen bg-gradient-to-br from-green-900 via-gray-800 to-yellow-900 text-white">
             <Header />
             
-            <div className="max-w-7xl mx-auto p-8">
+            <div className="max-w-8xl mx-auto p-3 pt-3">
                 {/* Header */}
-                <div className="mb-8">
+                <div className="mb-2">
                     <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
                         My NFTs
                     </h1>
@@ -590,16 +596,19 @@ export default function MyStuff() {
                             )}
                         </div>
                     )}
-
                 </div>
 
-                {/* Address Management */}
-                <div className="mb-8 space-y-4">
+                {/* Layout Principal: Sidebar + Conteúdo */}
+                <div className="flex gap-6">
+                    {/* Sidebar Lateral */}
+                    <div className="w-80 flex-shrink-0 space-y-6">
+                        {/* Address Management */}
+                        <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-2xl font-semibold">My Addresses</h2>
+                        <h2 className="text-lg font-semibold">My Addresses</h2>
                         <button
                             onClick={() => setShowAddAddressForm(!showAddAddressForm)}
-                            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm font-medium transition-colors"
+                            className="px-3 py-1 bg-blue-500 hover:bg-blue-600 rounded text-xs font-medium transition-colors"
                         >
                             ➕ Add Address
                         </button>
@@ -672,7 +681,7 @@ export default function MyStuff() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-green-400 text-sm mb-1 font-semibold">🟢 Connected Wallet</p>
-                                    <p className="text-xs font-mono break-all">{connectedAddress}</p>
+                                    <p className="text-xs font-mono">{truncateAddress(connectedAddress)}</p>
                                 </div>
                                 {!savedAddresses.some(addr => addr.address === connectedAddress) && (
                                     <button
@@ -707,10 +716,10 @@ export default function MyStuff() {
 
                     {/* Saved Addresses */}
                     {!loadingAddresses && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
                             {/* All Addresses Card */}
                             <div
-                                className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                                className={`p-3 rounded-lg border cursor-pointer transition-all ${
                                     selectedAddress === 'ALL'
                                         ? 'bg-gradient-to-br from-purple-900/30 to-blue-900/30 border-purple-500'
                                         : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
@@ -718,9 +727,9 @@ export default function MyStuff() {
                                 onClick={() => setSelectedAddress('ALL')}
                             >
                                 <div className="flex items-start justify-between mb-2">
-                                    <div className="flex-1">
-                                        <p className="font-semibold text-sm mb-1">🌐 All Addresses</p>
-                                        <p className="text-xs text-gray-400">View NFTs from all saved addresses</p>
+                                        <div className="flex-1 min-w-0">
+                                        <p className="font-semibold text-xs mb-1">🌐 All Addresses</p>
+                                        <p className="text-xs text-gray-400">View all NFTs</p>
                                     </div>
                                 </div>
                                 {selectedAddress === 'ALL' && (
@@ -732,7 +741,7 @@ export default function MyStuff() {
                             {savedAddresses.map((addr) => (
                                 <div
                                     key={addr.address}
-                                    className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                                    className={`p-3 rounded-lg border cursor-pointer transition-all ${
                                         selectedAddress === addr.address
                                             ? 'bg-blue-900/30 border-blue-500'
                                             : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
@@ -740,9 +749,9 @@ export default function MyStuff() {
                                     onClick={() => setSelectedAddress(addr.address)}
                                 >
                                     <div className="flex items-start justify-between mb-2">
-                                        <div className="flex-1">
-                                            <p className="font-semibold text-sm mb-1">{addr.label}</p>
-                                            <p className="text-xs font-mono text-gray-400 break-all">{addr.address}</p>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-semibold text-xs mb-1">{addr.label}</p>
+                                            <p className="text-xs font-mono text-gray-400">{truncateAddress(addr.address, 10, 6)}</p>
                                         </div>
                                         <button
                                             onClick={(e) => {
@@ -769,15 +778,15 @@ export default function MyStuff() {
                             <p className="text-gray-400">No saved addresses yet. Connect a wallet or add an address manually.</p>
                         </div>
                     )}
-                </div>
+                        </div>
 
-                {/* Collections Management */}
-                <div className="mb-8 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-2xl font-semibold">NFT Collections</h2>
+                        {/* Collections Management */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-lg font-semibold">Collections</h2>
                         <button
-                            onClick={() => setShowAddCollectionForm(!showAddCollectionForm)}
-                            className="px-4 py-2 bg-purple-500 hover:bg-purple-600 rounded-lg text-sm font-medium transition-colors"
+                                onClick={() => setShowAddCollectionForm(!showAddCollectionForm)}
+                                className="px-3 py-1 bg-purple-500 hover:bg-purple-600 rounded text-xs font-medium transition-colors"
                         >
                             ➕ Add Custom Collection
                         </button>
@@ -842,7 +851,7 @@ export default function MyStuff() {
                                     key={collection.policyId}
                                     className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg hover:bg-gray-900 transition-colors"
                                 >
-                                    <div className="flex items-center gap-3 flex-1">
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
                                         <input
                                             type="checkbox"
                                             id={`collection-${collection.policyId}`}
@@ -852,7 +861,7 @@ export default function MyStuff() {
                                         />
                                         <label
                                             htmlFor={`collection-${collection.policyId}`}
-                                            className="flex-1 cursor-pointer"
+                                            className="flex-1 min-w-0 cursor-pointer"
                                         >
                                             <div className="flex items-center gap-2">
                                                 <span className="font-semibold text-sm">
@@ -865,7 +874,7 @@ export default function MyStuff() {
                                                 )}
                                             </div>
                                             <p className="text-xs font-mono text-gray-500 mt-1">
-                                                {collection.policyId.substring(0, 40)}...
+                                                {truncateAddress(collection.policyId, 16, 8)}
                                             </p>
                                         </label>
                                     </div>
@@ -885,15 +894,18 @@ export default function MyStuff() {
                                 {collections.filter(c => c.enabled).length} of {collections.length} collections enabled
                             </p>
                         </div>
+                        </div>
+                        </div>
                     </div>
-                </div>
 
-                {/* Error Message */}
-                {error && (
-                    <div className="mb-8 p-4 bg-red-500/20 border border-red-500 rounded-lg">
-                        <p className="text-red-300">❌ {error}</p>
-                    </div>
-                )}
+                    {/* Área Principal - NFTs */}
+                    <div className="flex-1 min-w-0">
+                        {/* Error Message */}
+                        {error && (
+                            <div className="mb-6 p-4 bg-red-500/20 border border-red-500 rounded-lg">
+                                <p className="text-red-300">❌ {error}</p>
+                            </div>
+                        )}
 
                 {/* Loading NFTs */}
                 {loading && (
@@ -1117,6 +1129,8 @@ export default function MyStuff() {
                         </p>
                     </div>
                 )}
+                    </div>
+                </div>
             </div>
         </div>
     );
