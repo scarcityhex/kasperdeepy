@@ -546,28 +546,28 @@ export default function MyStuff() {
         <div className="min-h-screen bg-gradient-to-br from-green-900 via-gray-800 to-yellow-900 text-white">
             <Header />
             
-            <div className="max-w-8xl mx-auto p-3 pt-3">
+            <div className="max-w-8xl mx-auto p-3 pt-3 lg:p-6">
                 {/* Header */}
-                <div className="mb-2">
-                    <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                <div className="mb-2 lg:mb-4">
+                    <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
                         My NFTs
                     </h1>
-                    <p className="text-gray-400">
+                    <p className="text-sm md:text-base text-gray-400">
                         View your Cardano NFTs. Connect a wallet or add addresses manually to get started. If you change the wallet in your browser extension, please refresh the page.
                     </p>
                 </div>
 
                 {/* Wallet Connection & Sync Controls */}
-                <div className="mb-8 flex items-center gap-4 flex-wrap">
+                <div className="mb-4 lg:mb-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
                     <AdaWalletConnector onWalletConnected={onWalletConnected} />
                     
                     {/* Sync Button - Aparece se houver endereços salvos OU endereço conectado */}
                     {(savedAddresses.length > 0 || (isConnected && network === 1)) && (
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-1 w-full sm:w-auto">
                             <button 
                                 onClick={syncWithBlockchain} 
                                 disabled={syncing}
-                                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform ${
+                                className={`w-full sm:w-auto px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform ${
                                     syncing 
                                         ? 'bg-gray-600 cursor-not-allowed' 
                                         : 'bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 hover:scale-105 shadow-lg'
@@ -599,11 +599,11 @@ export default function MyStuff() {
                 </div>
 
                 {/* Layout Principal: Sidebar + Conteúdo */}
-                <div className="flex gap-6">
+                <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
                     {/* Sidebar Lateral */}
-                    <div className="w-80 flex-shrink-0 space-y-6">
+                    <div className="w-full lg:w-80 flex-shrink-0 space-y-4 lg:space-y-6">
                         {/* Address Management */}
-                        <div className="space-y-4">
+                        <div className="space-y-3 lg:space-y-4">
                     <div className="flex items-center justify-between">
                         <h2 className="text-lg font-semibold">My Addresses</h2>
                         <button
@@ -616,8 +616,8 @@ export default function MyStuff() {
 
                     {/* Add Address Form */}
                     {showAddAddressForm && (
-                        <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700">
-                            <h3 className="text-lg font-semibold mb-4">Add New Address</h3>
+                        <div className="bg-gray-800/50 backdrop-blur-sm p-4 md:p-6 rounded-lg border border-gray-700">
+                            <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4">Add New Address</h3>
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm text-gray-400 mb-2">Address (addr1...)</label>
@@ -626,7 +626,7 @@ export default function MyStuff() {
                                         value={newAddressInput}
                                         onChange={(e) => setNewAddressInput(e.target.value)}
                                         placeholder="addr1..."
-                                        className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                                        className="w-full px-3 py-2 md:px-4 bg-gray-900 border border-gray-700 rounded-lg text-sm md:text-base text-white font-mono focus:outline-none focus:border-blue-500"
                                     />
                                 </div>
                                 <div>
@@ -636,7 +636,7 @@ export default function MyStuff() {
                                         value={newAddressLabel}
                                         onChange={(e) => setNewAddressLabel(e.target.value)}
                                         placeholder="My Wallet"
-                                        className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                                        className="w-full px-3 py-2 md:px-4 bg-gray-900 border border-gray-700 rounded-lg text-sm md:text-base text-white focus:outline-none focus:border-blue-500"
                                     />
                                 </div>
                                 <div className="flex gap-2">
@@ -677,7 +677,7 @@ export default function MyStuff() {
 
                     {/* Connected Wallet */}
                     {isConnected && connectedAddress && (
-                        <div className="bg-green-900/20 backdrop-blur-sm p-4 rounded-lg border border-green-700">
+                        <div className="bg-green-900/20 backdrop-blur-sm p-3 md:p-4 rounded-lg border border-green-700">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-green-400 text-sm mb-1 font-semibold">🟢 Connected Wallet</p>
@@ -781,7 +781,7 @@ export default function MyStuff() {
                         </div>
 
                         {/* Collections Management */}
-                        <div className="space-y-4">
+                        <div className="space-y-3 lg:space-y-4">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-lg font-semibold">Collections</h2>
                         <button
@@ -794,8 +794,8 @@ export default function MyStuff() {
 
                     {/* Add Collection Form */}
                     {showAddCollectionForm && (
-                        <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700">
-                            <h3 className="text-lg font-semibold mb-4">Add Custom Collection</h3>
+                        <div className="bg-gray-800/50 backdrop-blur-sm p-4 md:p-6 rounded-lg border border-gray-700">
+                            <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4">Add Custom Collection</h3>
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm text-gray-400 mb-2">Policy ID</label>
@@ -804,7 +804,7 @@ export default function MyStuff() {
                                         value={newCollectionPolicyId}
                                         onChange={(e) => setNewCollectionPolicyId(e.target.value)}
                                         placeholder="e.g., 8f80ebfaf62a8c33ae2adf047572604c74db8bc1daba2b43f9a65635"
-                                        className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-purple-500"
+                                        className="w-full px-3 py-2 md:px-4 bg-gray-900 border border-gray-700 rounded-lg text-white font-mono text-xs md:text-sm focus:outline-none focus:border-purple-500"
                                     />
                                 </div>
                                 <div>
@@ -814,7 +814,7 @@ export default function MyStuff() {
                                         value={newCollectionName}
                                         onChange={(e) => setNewCollectionName(e.target.value)}
                                         placeholder="e.g., My Custom Collection"
-                                        className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                                        className="w-full px-3 py-2 md:px-4 bg-gray-900 border border-gray-700 rounded-lg text-sm md:text-base text-white focus:outline-none focus:border-purple-500"
                                     />
                                 </div>
                                 <div className="flex gap-2">
@@ -928,7 +928,7 @@ export default function MyStuff() {
                 {!loading && !syncing && userNFTs.length > 0 && (
                     <div className="space-y-2">
                         {/* Summary */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             <div className="bg-gray-800/50 backdrop-blur-sm p-2 rounded-lg border border-gray-700">
                                 <p className="text-gray-400 text-sm mb-1">Total NFTs</p>
                                 <p className="text-3xl font-bold text-green-400">{totalNFTs}</p>
@@ -945,8 +945,8 @@ export default function MyStuff() {
 
                         {/* Collection Breakdown */}
                         <div className="bg-gray-800/50 backdrop-blur-sm p-2 rounded-lg border border-gray-700">
-                            <h2 className="text-xl font-semibold mb-2">Collections</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <h2 className="text-lg md:text-xl font-semibold mb-2">Collections</h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                                 {userNFTs.map((policyAssets) => (
                                     <div 
                                         key={policyAssets.policyId}
@@ -964,10 +964,10 @@ export default function MyStuff() {
                         </div>
 
                         {/* Filter Buttons */}
-                        <div className="flex gap-2 flex-wrap">
+                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                             <button
                                 onClick={() => setSelectedPolicy('ALL')}
-                                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
                                     selectedPolicy === 'ALL' 
                                         ? 'bg-white text-gray-900' 
                                         : 'bg-gray-700 hover:bg-gray-600'
@@ -979,7 +979,7 @@ export default function MyStuff() {
                                 <button
                                     key={policyAssets.policyId}
                                     onClick={() => setSelectedPolicy(policyAssets.policyId)}
-                                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                    className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                                         selectedPolicy === policyAssets.policyId 
                                             ? `${getPolicyColor(policyAssets.policyId)} text-white` 
                                             : 'bg-gray-700 hover:bg-gray-600'
@@ -993,13 +993,13 @@ export default function MyStuff() {
                         {/* NFTs Grid */}
                         <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-700 overflow-hidden">
                             <div className="p-2 border-b border-gray-700">
-                                <h2 className="text-xl font-semibold">
+                                <h2 className="text-lg md:text-xl font-semibold">
                                     Your NFTs ({filteredAssets.length})
                                 </h2>
                             </div>
                             
-                            <div className="max-h-[950px] overflow-y-auto">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 p-3">
+                            <div className="max-h-[70vh] lg:max-h-[950px] overflow-y-auto">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 p-3">
                                     {filteredAssets.map((asset) => (
                                         <div 
                                             key={asset.assetId}
