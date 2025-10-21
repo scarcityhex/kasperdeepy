@@ -1022,17 +1022,35 @@ export default function MyStuff() {
                                                 }
                                                 
                                                 if (imageUrl) {
-                                                    // Converter IPFS para HTTP
-                                                    const httpUrl = imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                                                    // Extrair hash IPFS
+                                                    const ipfsHash = imageUrl.replace('ipfs://', '');
+                                                    
+                                                    // Lista de gateways IPFS (ordem de prioridade)
+                                                    const gateways = [
+                                                        `https://cloudflare-ipfs.com/ipfs/${ipfsHash}`,
+                                                        `https://gateway.pinata.cloud/ipfs/${ipfsHash}`,
+                                                        `https://ipfs.io/ipfs/${ipfsHash}`,
+                                                        `https://dweb.link/ipfs/${ipfsHash}`
+                                                    ];
                                                     
                                                     return (
                                                         <div className="mb-3 rounded overflow-hidden bg-gray-800 h-48 flex items-center justify-center">
                                                             <img 
-                                                                src={httpUrl} 
+                                                                src={gateways[0]} 
                                                                 alt={asset.metadata?.name || asset.assetName}
                                                                 className="max-w-full max-h-full object-contain"
                                                                 onError={(e) => {
-                                                                    e.currentTarget.style.display = 'none';
+                                                                    const img = e.currentTarget;
+                                                                    const currentSrc = img.src;
+                                                                    const currentIndex = gateways.findIndex(g => g === currentSrc);
+                                                                    
+                                                                    // Tentar próximo gateway
+                                                                    if (currentIndex < gateways.length - 1) {
+                                                                        img.src = gateways[currentIndex + 1];
+                                                                    } else {
+                                                                        // Todos os gateways falharam
+                                                                        img.style.display = 'none';
+                                                                    }
                                                                 }}
                                                             />
                                                         </div>
