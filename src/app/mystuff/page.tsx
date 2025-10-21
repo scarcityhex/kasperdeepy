@@ -38,6 +38,7 @@ interface NFTAsset {
     assetName: string;
     policyId: string;
     metadata: any;
+    address: string;
 }
 
 interface PolicyAssets {
@@ -83,6 +84,44 @@ export default function MyStuff() {
     const [newCollectionName, setNewCollectionName] = useState("");
     
     const { user } = useAuth();
+
+    // Função para deletar uma NFT específica
+    const deleteNFT = async (assetId: string, assetName: string, address: string) => {
+        if (!user) return;
+        
+        const confirmed = window.confirm(`Delete "${assetName}"?\n\nThis will remove it from your collection. You can sync again to restore it if you still own it.`);
+        if (!confirmed) return;
+
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/NFT/DeleteNFT', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ assetId, address }),
+            });
+
+            if (response.ok) {
+                // Atualizar estado local removendo a NFT
+                setUserNFTs(prevNFTs => {
+                    return prevNFTs.map(policy => ({
+                        ...policy,
+                        assets: policy.assets.filter(nft => nft.assetId !== assetId)
+                    })).filter(policy => policy.assets.length > 0); // Remover coleções vazias
+                });
+                
+                alert(`✅ "${assetName}" deleted successfully!`);
+            } else {
+                const errorData = await response.json();
+                alert(`❌ Error deleting NFT: ${errorData.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error deleting NFT:', error);
+            alert('❌ Error deleting NFT. Please try again.');
+        }
+    };
 
     // Funções para gerenciar coleções
     const toggleCollection = async (policyId: string) => {
@@ -1006,12 +1045,24 @@ export default function MyStuff() {
                                             className="bg-gray-900/50 rounded-lg p-2 border border-gray-700 hover:border-gray-600 transition-colors"
                                         >
                                             <div className="flex items-start justify-between mb-2">
-                                                <h3 className="font-semibold text-sm">
+                                                <h3 className="font-semibold text-sm flex-1 min-w-0 pr-2">
                                                     {asset.metadata?.name || asset.assetName}
                                                 </h3>
-                                                <span className={`text-xs px-2 py-1 rounded ${policyColors[asset.policyId]} text-white`}>
-                                                    NFT
-                                                </span>
+                                                <div className="flex items-center gap-1 flex-shrink-0">
+                                                    <span className={`text-xs px-2 py-1 rounded ${getPolicyColor(asset.policyId)} text-white`}>
+                                                        NFT
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            deleteNFT(asset.assetId, asset.metadata?.name || asset.assetName, asset.address);
+                                                        }}
+                                                        className="p-1 hover:bg-red-500/20 rounded text-red-400 hover:text-red-300 transition-colors"
+                                                        title="Delete NFT"
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                </div>
                                             </div>
                                             
                                             {(() => {
@@ -1094,7 +1145,7 @@ export default function MyStuff() {
                                                 <summary className="text-xs text-blue-400 cursor-pointer hover:text-blue-300">
                                                     View Metadata
                                                 </summary>
-                                                <pre className="text-xs mt-2 p-2 bg-gray-950 rounded overflow-x-auto max-h-40">
+                                                <pre className="text-xs mt-2 p-2 bg-gray-950 rounded overflow-x-auto max-h-84">
                                                     {JSON.stringify(asset.metadata, null, 2)}
                                                 </pre>
                                             </details>
