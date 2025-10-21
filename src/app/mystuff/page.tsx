@@ -78,13 +78,20 @@ export default function MyStuff() {
     const { user } = useAuth();
 
     // Funções para gerenciar coleções
-    const toggleCollection = (policyId: string) => {
-        setCollections(prev => prev.map(col => 
+    const toggleCollection = async (policyId: string) => {
+        const updatedCollections = collections.map(col => 
             col.policyId === policyId ? { ...col, enabled: !col.enabled } : col
-        ));
+        );
+        setCollections(updatedCollections);
+        
+        // Salvar no Firestore se for coleção customizada
+        const toggledCollection = updatedCollections.find(col => col.policyId === policyId);
+        if (toggledCollection?.isCustom) {
+            await saveCustomCollectionsToFirestore(updatedCollections);
+        }
     };
 
-    const addCustomCollection = () => {
+    const addCustomCollection = async () => {
         if (!newCollectionPolicyId || !newCollectionName) {
             setError('Policy ID and Collection Name are required');
             return;
@@ -103,15 +110,49 @@ export default function MyStuff() {
             isCustom: true
         };
 
-        setCollections(prev => [...prev, newCollection]);
+        const updatedCollections = [...collections, newCollection];
+        setCollections(updatedCollections);
         setNewCollectionPolicyId("");
         setNewCollectionName("");
         setShowAddCollectionForm(false);
         setError(null);
+
+        // Salvar no Firestore
+        await saveCustomCollectionsToFirestore(updatedCollections);
     };
 
-    const removeCustomCollection = (policyId: string) => {
-        setCollections(prev => prev.filter(col => col.policyId !== policyId));
+    const removeCustomCollection = async (policyId: string) => {
+        const updatedCollections = collections.filter(col => col.policyId !== policyId);
+        setCollections(updatedCollections);
+        
+        // Salvar no Firestore
+        await saveCustomCollectionsToFirestore(updatedCollections);
+    };
+
+    const saveCustomCollectionsToFirestore = async (collectionsToSave: Collection[]) => {
+        if (!user) return;
+
+        try {
+            const token = await user.getIdToken();
+            const customCollections = collectionsToSave
+                .filter(col => col.isCustom)
+                .map(col => ({
+                    policyId: col.policyId,
+                    name: col.name,
+                    enabled: col.enabled
+                }));
+
+            await fetch('/api/NFT/UserCollections', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ collections: customCollections }),
+            });
+        } catch (error) {
+            console.error('Error saving custom collections:', error);
+        }
     };
 
     // Obter apenas coleções habilitadas
@@ -130,10 +171,11 @@ export default function MyStuff() {
         }
     };
 
-    // Carregar endereços salvos e NFTs do cache automaticamente
+    // Carregar endereços salvos, coleções customizadas e NFTs do cache automaticamente
     useEffect(() => {
         if (user) {
             loadSavedAddresses();
+            loadCustomCollections();
             loadCachedNFTs();
         }
     }, [user]);
@@ -165,6 +207,39 @@ export default function MyStuff() {
             console.error('Error loading saved addresses:', error);
         } finally {
             setLoadingAddresses(false);
+        }
+    };
+
+    const loadCustomCollections = async () => {
+        if (!user) return;
+
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/NFT/UserCollections', {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const customCollections = data.collections || [];
+                
+                // Mesclar coleções padrão com customizadas
+                const allCollections = [
+                    ...DEFAULT_COLLECTIONS,
+                    ...customCollections.map((col: any) => ({
+                        policyId: col.policyId,
+                        name: col.name,
+                        enabled: col.enabled !== false, // Default true
+                        isCustom: true
+                    }))
+                ];
+                
+                setCollections(allCollections);
+            }
+        } catch (error) {
+            console.error('Error loading custom collections:', error);
         }
     };
 
@@ -447,7 +522,7 @@ export default function MyStuff() {
                         My NFTs
                     </h1>
                     <p className="text-gray-400">
-                        Manage and view your Cardano NFTs. Connect a wallet or add addresses manually to get started.
+                        View your Cardano NFTs. Connect a wallet or add addresses manually to get started. If you change the wallet in your browser extension, please refresh the page.
                     </p>
                 </div>
 
