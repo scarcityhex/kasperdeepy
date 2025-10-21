@@ -5,13 +5,11 @@ import Image from 'next/image';
 import Modal from '../../../../components/ui/Modal';
 import Link from 'next/link';
 
-// Definindo a interface para a API da carteira para ter um código mais seguro
 interface WalletAPI {
     getUsedAddresses: () => Promise<string[]>;
     getNetworkId: () => Promise<number>;
 }
 
-// Definindo a interface para o objeto window.cardano
 interface CardanoWallet {
     enable: () => Promise<WalletAPI>;
 }
@@ -47,7 +45,6 @@ export default function AdaWalletConnector({ onWalletConnected }: AdaWalletConne
                 const addresses = await walletAPI?.getUsedAddresses();
                 
                 if (addresses && addresses.length > 0) {
-                    // Em vez de converter localmente, enviamos o endereço hex diretamente
                     const hexAddress = addresses[0];
                     
                     const networkId = await walletAPI?.getNetworkId();
@@ -64,7 +61,6 @@ export default function AdaWalletConnector({ onWalletConnected }: AdaWalletConne
                     onWalletConnected(hexAddress, true, networkId);
                     setIsModalOpen(false);
                 } else {
-                    // ✅ CORREÇÃO: Define um erro amigável em vez de lançar uma exceção.
                     setError(`No used addresses found in this ${wallet} wallet. Please make sure the selected account has a transaction history.`);
                     setIsConnected(false);
                     onWalletConnected("", false, undefined);
@@ -97,7 +93,6 @@ export default function AdaWalletConnector({ onWalletConnected }: AdaWalletConne
     };
     
     const handleConnectClick = () => {
-        // Reset state before attempting connection
         setNoWalletsDetected(false);
         setError(null);
         detectWallets();
@@ -122,7 +117,6 @@ export default function AdaWalletConnector({ onWalletConnected }: AdaWalletConne
                 </p>
             )}
 
-            {/* Esta área agora exibirá a mensagem amigável */}
             {error && <p className="text-red-500">{error}</p>}
             
             {isConnected && network !== 1 && (

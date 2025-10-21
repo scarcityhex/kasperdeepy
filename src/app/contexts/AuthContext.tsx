@@ -26,7 +26,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth deve ser usado dentro de um AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }
@@ -42,8 +42,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Garante que o documento do usuário seja criado ou verificado no backend
-        // antes de prosseguir e definir o estado do usuário na aplicação.
         try {
           const token = await user.getIdToken();
           await fetch('/api/auth/register-user', {
@@ -60,13 +58,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             })
           });
         } catch (error) {
-          console.error('Falha ao registrar ou verificar o usuário no backend:', error);
-          // Mesmo que o registro falhe, ainda definimos o usuário para que o logout funcione,
-          // mas a aplicação pode não funcionar como esperado.
+          console.error('Failed to register or verify the user on the backend:', error);
         }
         setUser(user);
       } else {
-        // Se não houver usuário, limpa o estado
         setUser(null);
       }
       setLoading(false);

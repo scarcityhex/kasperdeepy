@@ -3,7 +3,6 @@ import path from 'path';
 
 if (!admin.apps.length) {
   try {
-    // Tenta usar variáveis de ambiente primeiro
     if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
       admin.initializeApp({
         credential: admin.credential.cert({
@@ -15,7 +14,6 @@ if (!admin.apps.length) {
         storageBucket: "blockchainwars-1e5ac.appspot.com"
       });
     } else {
-      // Se não houver variáveis de ambiente, usa o arquivo de credenciais
       const serviceAccountPath = path.join(process.cwd(), 'blockchainwars-1e5ac-firebase-adminsdk-ok7u0-63430cc571.json');
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccountPath),
@@ -31,7 +29,6 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-// Função para verificar token de autenticação
 export async function verifyIdToken(token: string) {
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
