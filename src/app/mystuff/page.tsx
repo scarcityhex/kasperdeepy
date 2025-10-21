@@ -15,7 +15,7 @@ interface Collection {
 const DEFAULT_COLLECTIONS: Collection[] = [
     {
         policyId: '8f80ebfaf62a8c33ae2adf047572604c74db8bc1daba2b43f9a65635',
-        name: 'Cardano Warriors - Assets',
+        name: 'Cardano Warriors',
         enabled: true,
         isCustom: false
     },
@@ -27,7 +27,7 @@ const DEFAULT_COLLECTIONS: Collection[] = [
     },
     {
         policyId: 'b9c188390e53e10833f17650ccf1b2704b2f67dccfae7352be3c9533',
-        name: 'Cardano Warriors',
+        name: 'Cardano Warriors - Assets',
         enabled: true,
         isCustom: false
     }
