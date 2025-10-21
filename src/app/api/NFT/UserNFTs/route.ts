@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     const userData = userDocSnap.data()!;
     const nftsByAddress = userData.nftsByAddress || {};
-    const allNFTs: any[] = [];
+    const allNFTs: Array<{ policyId: string; collectionName: string; assets: unknown[] }> = [];
 
     // Determinar quais endereços processar
     const addressesToProcess = address ? [address] : Object.keys(nftsByAddress);

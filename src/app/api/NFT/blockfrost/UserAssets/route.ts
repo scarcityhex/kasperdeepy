@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
       }, { status: 200 });
     }
 
-    const processedAssets: any[] = [];
+    const processedAssets: Array<{ assetId: string; assetName: string; policyId: string; metadata: Record<string, unknown> }> = [];
 
     // Processar cada asset encontrado
     for (const asset of assets) {
@@ -182,7 +182,6 @@ export async function GET(request: NextRequest) {
         );
 
         const metadata = assetMetadata.data.onchain_metadata || {};
-        const assetName = assetMetadata.data.asset_name || asset.unit;
 
         // Extrair ID único do asset
         const uniquePartHex = asset.unit.replace(policyId, '');

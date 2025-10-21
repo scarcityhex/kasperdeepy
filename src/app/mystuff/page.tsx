@@ -39,7 +39,7 @@ interface NFTAsset {
     assetId: string;
     assetName: string;
     policyId: string;
-    metadata: any;
+    metadata: Record<string, unknown>;
     address: string;
 }
 
@@ -52,8 +52,8 @@ interface PolicyAssets {
 interface SavedAddress {
     address: string;
     label: string;
-    addedAt: any;
-    lastSyncedAt: any;
+    addedAt: unknown;
+    lastSyncedAt: unknown;
 }
 
 // Função helper para truncar endereços
@@ -280,9 +280,9 @@ export default function MyStuff() {
                 // Mesclar coleções padrão com customizadas
                 const allCollections = [
                     ...DEFAULT_COLLECTIONS,
-                    ...customCollections.map((col: any) => ({
-                        policyId: col.policyId,
-                        name: col.name,
+                    ...customCollections.map((col: Record<string, unknown>) => ({
+                        policyId: col.policyId as string,
+                        name: col.name as string,
                         enabled: col.enabled !== false, // Default true
                         isCustom: true
                     }))
@@ -420,9 +420,9 @@ export default function MyStuff() {
             if (response.ok) {
                 const data = await response.json();
                 if (data.collections && data.collections.length > 0) {
-                    const formattedCollections = data.collections.map((col: any) => ({
-                        policyId: col.policyId,
-                        assets: col.assets
+                    const formattedCollections = data.collections.map((col: Record<string, unknown>) => ({
+                        policyId: col.policyId as string,
+                        assets: col.assets as NFTAsset[]
                     }));
                     setUserNFTs(formattedCollections);
                 } else {
@@ -947,29 +947,29 @@ export default function MyStuff() {
                         <div className="flex gap-3 mt-4">
                             <button
                                 onClick={() => setShowItemsModal(true)}
-                                className="flex-1 px-2 py-1 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 rounded-lg font-medium transition-all shadow-lg hover:shadow-purple-500/50 flex items-center justify-center gap-2"
+                                className="group flex-1 px-2 py-1 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 rounded-lg font-medium transition-all shadow-lg hover:shadow-purple-500/50 flex items-center justify-center gap-2 overflow-hidden"
                             >
                                 <Image
                                     src="/Ada/CW7800noBG.png"
                                     alt="Items icon"
                                     width={50}
                                     height={50}
-                                    className="w-8 h-8 object-contain"
+                                    className="w-8 h-8 object-contain transition-all duration-300 group-hover:scale-125 group-hover:-scale-x-125 group-hover:order-2"
                                 />
-                                <span>View Items</span>
+                                <span className="group-hover:order-1">View Items</span>
                             </button>
                             <button
                                 onClick={() => setShowRacesModal(true)}
-                                className="flex-1 px-2 py-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 rounded-lg font-medium transition-all shadow-lg hover:shadow-blue-500/50 flex items-center justify-center gap-2"
+                                className="group flex-1 px-2 py-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 rounded-lg font-medium transition-all shadow-lg hover:shadow-blue-500/50 flex items-center justify-center gap-2 overflow-hidden"
                             >
                                 <Image
                                     src="/Ada/CW6740noBG.png"
                                     alt="Races icon"
                                     width={50}
                                     height={50}
-                                    className="w-8 h-8 object-contain"
+                                    className="w-8 h-8 object-contain transition-all duration-300 group-hover:scale-125 group-hover:-scale-x-125 group-hover:order-2"
                                 />
-                                <span>View Races</span>
+                                <span className="group-hover:order-1">View Races</span>
                             </button>
                         </div>
                         </div>
@@ -1084,7 +1084,7 @@ export default function MyStuff() {
                                         >
                                             <div className="flex items-start justify-between mb-2">
                                                 <h3 className="font-semibold text-sm flex-1 min-w-0 pr-2">
-                                                    {asset.metadata?.name || asset.assetName}
+                                                    {(asset.metadata?.name as string) || asset.assetName}
                                                 </h3>
                                                 <div className="flex items-center gap-1 flex-shrink-0">
                                                     <span className={`text-xs px-2 py-1 rounded ${getPolicyColor(asset.policyId)} text-white`}>
@@ -1093,7 +1093,7 @@ export default function MyStuff() {
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            deleteNFT(asset.assetId, asset.metadata?.name || asset.assetName, asset.address);
+                                                            deleteNFT(asset.assetId, (asset.metadata?.name as string) || asset.assetName, asset.address);
                                                         }}
                                                         className="p-1 hover:bg-red-500/20 rounded text-red-400 hover:text-red-300 transition-colors"
                                                         title="Delete NFT"
@@ -1105,24 +1105,25 @@ export default function MyStuff() {
                                             
                                             {(() => {
                                                 // Tentar diferentes formatos de URL de imagem
-                                                let imageUrl = asset.metadata?.image;
+                                                let imageUrl = asset.metadata?.image as string | undefined;
                                                 
                                                 // Se não tem image direta, buscar em files array
                                                 if (!imageUrl && asset.metadata?.files && Array.isArray(asset.metadata.files)) {
                                                     // Priorizar imagens (png, gif, jpg) sobre vídeos
-                                                    const imageFile = asset.metadata.files.find((f: any) => 
-                                                        f.mediaType?.startsWith('image/') || f.mime?.startsWith('image/')
-                                                    );
+                                                    const imageFile = asset.metadata.files.find((f: Record<string, unknown>) => 
+                                                        (f.mediaType as string)?.startsWith('image/') || (f.mime as string)?.startsWith('image/')
+                                                    ) as Record<string, unknown> | undefined;
                                                     
                                                     if (imageFile) {
-                                                        imageUrl = imageFile.src;
+                                                        imageUrl = imageFile.src as string;
                                                     } else if (asset.metadata.files.length > 0) {
                                                         // Se não encontrou imagem, usar primeiro arquivo
-                                                        imageUrl = asset.metadata.files[0].src;
+                                                        const firstFile = asset.metadata.files[0] as Record<string, unknown>;
+                                                        imageUrl = firstFile.src as string;
                                                     }
                                                 }
                                                 
-                                                if (imageUrl) {
+                                                if (imageUrl && typeof imageUrl === 'string') {
                                                     // Extrair hash IPFS
                                                     const ipfsHash = imageUrl.replace('ipfs://', '');
                                                     
@@ -1138,7 +1139,7 @@ export default function MyStuff() {
                                                         <div className="mb-3 rounded overflow-hidden bg-gray-800 h-48 flex items-center justify-center">
                                                             <img 
                                                                 src={gateways[0]} 
-                                                                alt={asset.metadata?.name || asset.assetName}
+                                                                alt={(asset.metadata?.name as string) || asset.assetName}
                                                                 className="max-w-full max-h-full object-contain"
                                                                 onError={(e) => {
                                                                     const img = e.currentTarget;
@@ -1161,14 +1162,14 @@ export default function MyStuff() {
                                             })()}
                                             
                                             <div className="space-y-1 text-xs">
-                                                {asset.metadata?.rarity && (
+                                                {asset.metadata?.rarity !== undefined && (
                                                     <p className="text-gray-400">
-                                                        <span className="text-gray-500">Rarity:</span> {asset.metadata.rarity}
+                                                        <span className="text-gray-500">Rarity:</span> {String(asset.metadata.rarity)}
                                                     </p>
                                                 )}
-                                                {asset.metadata?.edition && (
+                                                {asset.metadata?.edition !== undefined && (
                                                     <p className="text-gray-400">
-                                                        <span className="text-gray-500">Edition:</span> {asset.metadata.edition}
+                                                        <span className="text-gray-500">Edition:</span> {String(asset.metadata.edition)}
                                                     </p>
                                                 )}
                                                 <p className="text-gray-400">

@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
     const savedAddresses = userData.cardanoAddresses || [];
 
     // Verificar se endereço já existe
-    const addressExists = savedAddresses.some((addr: any) => addr.address === address);
+    const addressExists = savedAddresses.some((addr: { address: string }) => addr.address === address);
     if (addressExists) {
       return NextResponse.json({ error: 'Address already saved' }, { status: 400 });
     }
@@ -191,7 +191,7 @@ export async function DELETE(request: NextRequest) {
     const savedAddresses = userData.cardanoAddresses || [];
 
     // Encontrar e remover o endereço
-    const addressToRemove = savedAddresses.find((addr: any) => addr.address === address);
+    const addressToRemove = savedAddresses.find((addr: { address: string }) => addr.address === address);
     
     if (!addressToRemove) {
       return NextResponse.json({ error: 'Address not found' }, { status: 404 });
