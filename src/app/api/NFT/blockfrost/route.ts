@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       const currentOwner = nftData?.owner || null;
 
       if (currentOwner === userUid) {
-        console.log(`NFT ${normalizedId} já pertence ao usuário ${userUid}. Ignorando processo de claim.`);
+        console.log(`NFT ${normalizedId} already belongs to user ${userUid}. Skipping claim process.`);
         continue;
       }
 
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
               activeCards: admin.firestore.FieldValue.arrayRemove(normalizedId)
             });
 
-            console.log(`NFT ${normalizedId} removida dos arrays do proprietário anterior (${ownerInsideTransaction}).`);
+            console.log(`NFT ${normalizedId} removed from the previous owner's arrays (${ownerInsideTransaction}).`);
           }
         }
 
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(`Jogador ${userUid} atualizado com sucesso.`);
+    console.log(`Player ${userUid} updated successfully.`);
     return NextResponse.json({ message: "NFTs claimed successfully!" }, { status: 200 });
   } catch (error) {
     console.error("Error processing NFTs:", error);

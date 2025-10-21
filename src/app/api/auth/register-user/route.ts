@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
 
     if (!authHeader) {
-      return NextResponse.json({ error: 'Token de autorização não fornecido' }, { status: 401 });
+      return NextResponse.json({ error: 'Authorization token not provided' }, { status: 401 });
     }
 
     const token = authHeader.split(' ')[1];
@@ -17,21 +17,18 @@ export async function POST(request: NextRequest) {
     try {
       decodedToken = await admin.auth().verifyIdToken(token);
     } catch (error) {
-      console.error('Token inválido:', error);
-      return NextResponse.json({ error: 'Token inválido' }, { status: 403 });
+      console.error('Invalid token:', error);
+      return NextResponse.json({ error: 'Invalid token' }, { status: 403 });
     }
 
-    // Verificar se o UID do token corresponde ao UID enviado
     if (decodedToken.uid !== uid) {
-      return NextResponse.json({ error: 'UID não autorizado' }, { status: 403 });
+      return NextResponse.json({ error: 'Unauthorized UID' }, { status: 403 });
     }
 
-    // Verificar se o usuário já existe na coleção player
     const playerRef = db.collection('player').doc(uid);
     const playerDoc = await playerRef.get();
 
     if (!playerDoc.exists) {
-      // Criar novo Player na coleção player
       await playerRef.set({
         uid,
         email,
@@ -46,14 +43,13 @@ export async function POST(request: NextRequest) {
        
       });
 
-      console.log(`Novo Player criado: ${uid}`);
+      console.log(`New player created: ${uid}`);
       return NextResponse.json({ 
         success: true, 
-        message: 'Player criado com sucesso',
+        message: 'Player created successfully',
         isNewPlayer: true 
       }, { status: 201 });
     } else {
-      // Atualizar último login
       await playerRef.update({
         lastLogin: admin.firestore.FieldValue.serverTimestamp(),
         email,
@@ -61,18 +57,18 @@ export async function POST(request: NextRequest) {
         photoURL: photoURL || playerDoc.data()?.photoURL
       });
 
-      console.log(`Player existente logado: ${uid}`);
+      console.log(`Existing player logged in: ${uid}`);
       return NextResponse.json({ 
         success: true, 
-        message: 'Login atualizado',
+        message: 'Login updated',
         isNewPlayer: false 
       }, { status: 200 });
     }
   } catch (error) {
-    console.error('Erro ao registrar usuário:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    console.error('Error registering user:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ 
-      error: 'Erro interno do servidor', 
+      error: 'Internal server error', 
       details: errorMessage 
     }, { status: 500 });
   }
