@@ -4,11 +4,33 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import Header from "@/components/layout/Header";
 import AdaWalletConnector from './components/ada/AdaWalletConnector';
 
-// Policy IDs das coleções que queremos verificar
-const POLICY_IDS = [
-    '8f80ebfaf62a8c33ae2adf047572604c74db8bc1daba2b43f9a65635',
-    'b7761c472eef3b6e0505441efaf940892bb59c01be96070b0a0a89b3',
-    'b9c188390e53e10833f17650ccf1b2704b2f67dccfae7352be3c9533'
+// Coleções padrão
+interface Collection {
+    policyId: string;
+    name: string;
+    enabled: boolean;
+    isCustom?: boolean;
+}
+
+const DEFAULT_COLLECTIONS: Collection[] = [
+    {
+        policyId: '8f80ebfaf62a8c33ae2adf047572604c74db8bc1daba2b43f9a65635',
+        name: 'Cardano Warriors - Assets',
+        enabled: true,
+        isCustom: false
+    },
+    {
+        policyId: 'b7761c472eef3b6e0505441efaf940892bb59c01be96070b0a0a89b3',
+        name: 'Cardano Warriors - Islands',
+        enabled: true,
+        isCustom: false
+    },
+    {
+        policyId: 'b9c188390e53e10833f17650ccf1b2704b2f67dccfae7352be3c9533',
+        name: 'Cardano Warriors',
+        enabled: true,
+        isCustom: false
+    }
 ];
 
 interface NFTAsset {
@@ -39,7 +61,6 @@ export default function MyStuff() {
     const [userNFTs, setUserNFTs] = useState<PolicyAssets[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [selectedPolicy, setSelectedPolicy] = useState<string>('ALL');
-    const [dataSource, setDataSource] = useState<'cache' | 'blockchain' | null>(null);
     const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
     const [selectedAddress, setSelectedAddress] = useState<string | null>('ALL');
     const [loadingAddresses, setLoadingAddresses] = useState(false);
@@ -47,7 +68,56 @@ export default function MyStuff() {
     const [newAddressInput, setNewAddressInput] = useState("");
     const [newAddressLabel, setNewAddressLabel] = useState("");
     const [showAddAddressForm, setShowAddAddressForm] = useState(false);
+    
+    // Estados para coleções
+    const [collections, setCollections] = useState<Collection[]>(DEFAULT_COLLECTIONS);
+    const [showAddCollectionForm, setShowAddCollectionForm] = useState(false);
+    const [newCollectionPolicyId, setNewCollectionPolicyId] = useState("");
+    const [newCollectionName, setNewCollectionName] = useState("");
+    
     const { user } = useAuth();
+
+    // Funções para gerenciar coleções
+    const toggleCollection = (policyId: string) => {
+        setCollections(prev => prev.map(col => 
+            col.policyId === policyId ? { ...col, enabled: !col.enabled } : col
+        ));
+    };
+
+    const addCustomCollection = () => {
+        if (!newCollectionPolicyId || !newCollectionName) {
+            setError('Policy ID and Collection Name are required');
+            return;
+        }
+
+        // Verificar se já existe
+        if (collections.some(col => col.policyId === newCollectionPolicyId)) {
+            setError('This collection already exists');
+            return;
+        }
+
+        const newCollection: Collection = {
+            policyId: newCollectionPolicyId,
+            name: newCollectionName,
+            enabled: true,
+            isCustom: true
+        };
+
+        setCollections(prev => [...prev, newCollection]);
+        setNewCollectionPolicyId("");
+        setNewCollectionName("");
+        setShowAddCollectionForm(false);
+        setError(null);
+    };
+
+    const removeCustomCollection = (policyId: string) => {
+        setCollections(prev => prev.filter(col => col.policyId !== policyId));
+    };
+
+    // Obter apenas coleções habilitadas
+    const getEnabledPolicyIds = () => {
+        return collections.filter(col => col.enabled).map(col => col.policyId);
+    };
 
     const onWalletConnected = (addr: string, connected: boolean, netId: number | undefined) => {
         setConnectedAddress(addr);
@@ -228,10 +298,8 @@ export default function MyStuff() {
                         assets: col.assets
                     }));
                     setUserNFTs(formattedCollections);
-                    setDataSource('cache');
                 } else {
                     setUserNFTs([]);
-                    setDataSource('cache');
                 }
             }
         } catch (error) {
@@ -252,8 +320,9 @@ export default function MyStuff() {
             const token = await user.getIdToken();
 
             // Sincronizar cada endereço salvo
+            const enabledPolicyIds = getEnabledPolicyIds();
             for (const savedAddr of savedAddresses) {
-                for (const policyId of POLICY_IDS) {
+                for (const policyId of enabledPolicyIds) {
                     try {
                         await fetch(`/api/NFT/blockfrost/UserAssets?address=${savedAddr.address}&policyId=${policyId}&sync=true`, {
                             headers: {
@@ -268,7 +337,6 @@ export default function MyStuff() {
 
             // Após sincronizar todos, recarregar do cache
             await loadCachedNFTs();
-            setDataSource('blockchain');
 
         } catch (error) {
             console.error("Error syncing all addresses:", error);
@@ -294,10 +362,18 @@ export default function MyStuff() {
             return;
         }
 
-        const addressToSync = selectedAddress || connectedAddress;
+        // Determinar qual endereço sincronizar
+        // Prioridade: 1) Endereço selecionado, 2) Endereço conectado
+        let addressToSync: string | null = null;
+        
+        if (selectedAddress && selectedAddress !== 'ALL') {
+            addressToSync = selectedAddress;
+        } else if (connectedAddress) {
+            addressToSync = connectedAddress;
+        }
         
         if (!addressToSync) {
-            alert("No address selected.");
+            alert("Please select an address or connect a wallet to sync.");
             return;
         }
 
@@ -309,8 +385,9 @@ export default function MyStuff() {
 
             // Sincronizar NFTs de cada policy ID com blockchain
             const allAssets: PolicyAssets[] = [];
+            const enabledPolicyIds = getEnabledPolicyIds();
 
-            for (const policyId of POLICY_IDS) {
+            for (const policyId of enabledPolicyIds) {
                 try {
                     const response = await fetch(`/api/NFT/blockfrost/UserAssets?address=${addressToSync}&policyId=${policyId}&sync=true`, {
                         headers: {
@@ -333,7 +410,6 @@ export default function MyStuff() {
             }
 
             setUserNFTs(allAssets);
-            setDataSource('blockchain');
 
             if (allAssets.length === 0) {
                 setError("No NFTs found from the specified collections in this wallet.");
@@ -371,43 +447,50 @@ export default function MyStuff() {
                         My NFTs
                     </h1>
                     <p className="text-gray-400">
-                        Connect your Cardano wallet to view your NFTs from selected collections
+                        Manage and view your Cardano NFTs. Connect a wallet or add addresses manually to get started.
                     </p>
                 </div>
 
-                {/* Wallet Connection */}
+                {/* Wallet Connection & Sync Controls */}
                 <div className="mb-8 flex items-center gap-4 flex-wrap">
                     <AdaWalletConnector onWalletConnected={onWalletConnected} />
                     
-                    {isConnected && network === 1 && (
-                        <button 
-                            onClick={syncWithBlockchain} 
-                            disabled={syncing}
-                            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform ${
-                                syncing 
-                                    ? 'bg-gray-600 cursor-not-allowed' 
-                                    : 'bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 hover:scale-105 shadow-lg'
-                            }`}
-                        >
-                            {syncing ? (
-                                <div className="flex items-center gap-2">
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                    <span>Syncing...</span>
-                                </div>
-                            ) : (
-                                '🔄 Sync with Blockchain'
+                    {/* Sync Button - Aparece se houver endereços salvos OU endereço conectado */}
+                    {(savedAddresses.length > 0 || (isConnected && network === 1)) && (
+                        <div className="flex flex-col gap-1">
+                            <button 
+                                onClick={syncWithBlockchain} 
+                                disabled={syncing}
+                                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform ${
+                                    syncing 
+                                        ? 'bg-gray-600 cursor-not-allowed' 
+                                        : 'bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 hover:scale-105 shadow-lg'
+                                }`}
+                            >
+                                {syncing ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                        <span>Syncing...</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        🔄 Sync {selectedAddress === 'ALL' ? 'All Addresses' : 'Selected Address'}
+                                    </>
+                                )}
+                            </button>
+                            {!syncing && selectedAddress && selectedAddress !== 'ALL' && (
+                                <p className="text-xs text-gray-400 px-2">
+                                    Will sync: {savedAddresses.find(a => a.address === selectedAddress)?.label || 'Selected address'}
+                                </p>
                             )}
-                        </button>
-                    )}
-
-                    {dataSource && (
-                        <div className="px-4 py-2 bg-gray-700 rounded-lg text-sm">
-                            <span className="text-gray-400">Data source:</span>{' '}
-                            <span className={dataSource === 'blockchain' ? 'text-green-400' : 'text-blue-400'}>
-                                {dataSource === 'blockchain' ? '🔗 Blockchain' : '💾 Cache'}
-                            </span>
+                            {!syncing && selectedAddress === 'ALL' && savedAddresses.length > 0 && (
+                                <p className="text-xs text-gray-400 px-2">
+                                    Will sync {savedAddresses.length} address{savedAddresses.length > 1 ? 'es' : ''}
+                                </p>
+                            )}
                         </div>
                     )}
+
                 </div>
 
                 {/* Address Management */}
@@ -586,6 +669,123 @@ export default function MyStuff() {
                             <p className="text-gray-400">No saved addresses yet. Connect a wallet or add an address manually.</p>
                         </div>
                     )}
+                </div>
+
+                {/* Collections Management */}
+                <div className="mb-8 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-2xl font-semibold">NFT Collections</h2>
+                        <button
+                            onClick={() => setShowAddCollectionForm(!showAddCollectionForm)}
+                            className="px-4 py-2 bg-purple-500 hover:bg-purple-600 rounded-lg text-sm font-medium transition-colors"
+                        >
+                            ➕ Add Custom Collection
+                        </button>
+                    </div>
+
+                    {/* Add Collection Form */}
+                    {showAddCollectionForm && (
+                        <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700">
+                            <h3 className="text-lg font-semibold mb-4">Add Custom Collection</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-2">Policy ID</label>
+                                    <input
+                                        type="text"
+                                        value={newCollectionPolicyId}
+                                        onChange={(e) => setNewCollectionPolicyId(e.target.value)}
+                                        placeholder="e.g., 8f80ebfaf62a8c33ae2adf047572604c74db8bc1daba2b43f9a65635"
+                                        className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-purple-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-2">Collection Name</label>
+                                    <input
+                                        type="text"
+                                        value={newCollectionName}
+                                        onChange={(e) => setNewCollectionName(e.target.value)}
+                                        placeholder="e.g., My Custom Collection"
+                                        className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                                    />
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={addCustomCollection}
+                                        className="px-4 py-2 bg-purple-500 hover:bg-purple-600 rounded-lg text-sm font-medium transition-colors"
+                                    >
+                                        Add Collection
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowAddCollectionForm(false);
+                                            setNewCollectionPolicyId("");
+                                            setNewCollectionName("");
+                                            setError(null);
+                                        }}
+                                        className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Collections List */}
+                    <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700">
+                        <p className="text-sm text-gray-400 mb-4">
+                            Select which collections to search for NFTs. Only enabled collections will be synced.
+                        </p>
+                        <div className="space-y-3">
+                            {collections.map((collection) => (
+                                <div
+                                    key={collection.policyId}
+                                    className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg hover:bg-gray-900 transition-colors"
+                                >
+                                    <div className="flex items-center gap-3 flex-1">
+                                        <input
+                                            type="checkbox"
+                                            id={`collection-${collection.policyId}`}
+                                            checked={collection.enabled}
+                                            onChange={() => toggleCollection(collection.policyId)}
+                                            className="w-5 h-5 rounded border-gray-600 text-purple-500 focus:ring-purple-500 focus:ring-offset-gray-900 cursor-pointer"
+                                        />
+                                        <label
+                                            htmlFor={`collection-${collection.policyId}`}
+                                            className="flex-1 cursor-pointer"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-semibold text-sm">
+                                                    {collection.name}
+                                                </span>
+                                                {collection.isCustom && (
+                                                    <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded">
+                                                        Custom
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-xs font-mono text-gray-500 mt-1">
+                                                {collection.policyId.substring(0, 40)}...
+                                            </p>
+                                        </label>
+                                    </div>
+                                    {collection.isCustom && (
+                                        <button
+                                            onClick={() => removeCustomCollection(collection.policyId)}
+                                            className="ml-3 px-2 py-1 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded text-xs transition-colors"
+                                        >
+                                            🗑️
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-700">
+                            <p className="text-xs text-gray-500">
+                                {collections.filter(c => c.enabled).length} of {collections.length} collections enabled
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Error Message */}

@@ -47,11 +47,20 @@ export async function GET(request: NextRequest) {
     for (const addr of addressesToProcess) {
       const addressNFTs = nftsByAddress[addr] || {};
       
-      for (const [policyId, collectionName] of Object.entries(COLLECTION_MAPPING)) {
-        const nftField = `${collectionName.toLowerCase()}NFTs`;
+      // Buscar todas as coleções NFT (campos que terminam com 'NFTs')
+      const nftFields = Object.keys(addressNFTs).filter(key => key.endsWith('NFTs') || key.endsWith('nfts'));
+      
+      for (const nftField of nftFields) {
         const userNFTIds = addressNFTs[nftField] || [];
-
         if (userNFTIds.length === 0) continue;
+
+        // Extrair nome da coleção do campo (remove 'NFTs' ou 'nfts' do final)
+        const collectionName = nftField.replace(/NFTs?$/i, '');
+        
+        // Tentar obter policy ID do mapeamento reverso, ou usar o nome da coleção
+        const policyId = Object.keys(COLLECTION_MAPPING).find(
+          key => COLLECTION_MAPPING[key].toLowerCase() === collectionName.toLowerCase()
+        ) || 'unknown';
 
         // Buscar dados completos de cada NFT
         const nftPromises = userNFTIds.map(async (nftId: string) => {

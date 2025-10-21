@@ -32,8 +32,8 @@ async function convertHexToBech32(hexAddress: string): Promise<string> {
 // Mapeamento de policy IDs para nomes de coleções no Firestore
 const COLLECTION_MAPPING: Record<string, string> = {
   '8f80ebfaf62a8c33ae2adf047572604c74db8bc1daba2b43f9a65635': 'CW',
-  'b7761c472eef3b6e0505441efaf940892bb59c01be96070b0a0a89b3': 'CWA_Collection2',
-  'b9c188390e53e10833f17650ccf1b2704b2f67dccfae7352be3c9533': 'CWA_Collection3'
+  'b7761c472eef3b6e0505441efaf940892bb59c01be96070b0a0a89b3': 'CWI',
+  'b9c188390e53e10833f17650ccf1b2704b2f67dccfae7352be3c9533': 'CWA'
 };
 
 export async function GET(request: NextRequest) {
@@ -63,11 +63,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'policyId is required' }, { status: 400 });
     }
 
-    // Verificar se a policy ID é válida
-    const collectionName = COLLECTION_MAPPING[policyId];
-    if (!collectionName) {
-      return NextResponse.json({ error: 'Invalid policy ID' }, { status: 400 });
-    }
+    // Obter nome da coleção (usar mapeamento ou gerar dinamicamente)
+    const collectionName = COLLECTION_MAPPING[policyId] || `Collection_${policyId.substring(0, 8)}`;
 
     const userDocRef = db.collection("player").doc(userUid);
 
