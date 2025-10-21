@@ -140,9 +140,8 @@ export async function POST(request: NextRequest) {
         const ownerInsideTransaction = nftData.owner || null;
         
         const currentUserData = currentUserDocSnap.data() || {};
-        const activeCards = currentUserData.activeCards || []; // Obtenha a informação da leitura inicial
+        const activeCards = currentUserData.activeCards || [];
 
-        // --- ESCRITAS DEPOIS ---
         if (ownerInsideTransaction && ownerInsideTransaction !== userUid) {
           const previousOwnerDocRef = db.collection("player").doc(ownerInsideTransaction);
           const previousOwnerDocSnap = await transaction.get(previousOwnerDocRef);

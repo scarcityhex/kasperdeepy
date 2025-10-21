@@ -5,13 +5,12 @@ import { getDatabase } from "firebase/database";
 import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, sendEmailVerification, signOut } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBA1nsd2Gf33DYY9Rr6nFTK8filLJlwVfU",
-  authDomain: "blockchainwars-1e5ac.firebaseapp.com",
-  projectId: "blockchainwars-1e5ac",
-  storageBucket: "blockchainwars-1e5ac.appspot.com",
-  messagingSenderId: "790129274205",
-  appId: "1:790129274205:web:3a35557454e6c940050cb4",
-  databaseURL: "https://blockchainwars-1e5ac-default-rtdb.firebaseio.com/"
+  apiKey: "AIzaSyCd7pue1F1K63igP6ZOk35sb58s24u9Fho",
+  authDomain: "kasperdeepy.firebaseapp.com",
+  projectId: "kasperdeepy",
+  storageBucket: "kasperdeepy.firebasestorage.app",
+  messagingSenderId: "419116821935",
+  appId: "1:419116821935:web:f9073a028f84e8d9ae535a"
 };
 
 const app = initializeApp(firebaseConfig);

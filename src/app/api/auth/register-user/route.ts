@@ -36,7 +36,6 @@ export async function POST(request: NextRequest) {
         photoURL: photoURL || null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         lastLogin: admin.firestore.FieldValue.serverTimestamp(),
-        activeCards: [],
         
        
        
