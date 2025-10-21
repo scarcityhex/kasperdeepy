@@ -1,17 +1,319 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
-
-import { getFirestore, doc, onSnapshot, collection, query, where, documentId } from 'firebase/firestore';
-import {app} from "@/libs/firebaseConfig"
 import Header from "@/components/layout/Header";
+import AdaWalletConnector from './components/ada/AdaWalletConnector';
 
+// Policy IDs das coleções que queremos verificar
+const POLICY_IDS = [
+    '8f80ebfaf62a8c33ae2adf047572604c74db8bc1daba2b43f9a65635',
+    'b7761c472eef3b6e0505441efaf940892bb59c01be96070b0a0a89b3',
+    'b9c188390e53e10833f17650ccf1b2704b2f67dccfae7352be3c9533'
+];
+
+interface NFTAsset {
+    assetId: string;
+    assetName: string;
+    policyId: string;
+    metadata: any;
+}
+
+interface PolicyAssets {
+    policyId: string;
+    assets: NFTAsset[];
+}
 
 export default function MyStuff() {
+    const [address, setAddress] = useState("");
+    const [isConnected, setIsConnected] = useState(false);
+    const [network, setNetwork] = useState<number | undefined>();
+    const [loading, setLoading] = useState(false);
+    const [userNFTs, setUserNFTs] = useState<PolicyAssets[]>([]);
+    const [error, setError] = useState<string | null>(null);
+    const [selectedPolicy, setSelectedPolicy] = useState<string>('ALL');
+    const { user } = useAuth();
+
+    const onWalletConnected = (addr: string, connected: boolean, netId: number | undefined) => {
+        setAddress(addr);
+        setIsConnected(connected);
+        setNetwork(netId);
+        
+        // Limpar dados quando desconectar
+        if (!connected) {
+            setUserNFTs([]);
+            setError(null);
+        }
+    };
+
+    const fetchUserNFTs = async () => {
+        if (!address || !user) {
+            alert("Wallet not connected or user not authenticated.");
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const token = await user.getIdToken();
+
+            // Buscar NFTs de cada policy ID
+            const allAssets: PolicyAssets[] = [];
+
+            for (const policyId of POLICY_IDS) {
+                try {
+                    const response = await fetch(`/api/NFT/blockfrost/UserAssets?address=${address}&policyId=${policyId}`, {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.assets && data.assets.length > 0) {
+                            allAssets.push({
+                                policyId,
+                                assets: data.assets
+                            });
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Error fetching assets for policy ${policyId}:`, err);
+                }
+            }
+
+            setUserNFTs(allAssets);
+
+            if (allAssets.length === 0) {
+                setError("No NFTs found from the specified collections in this wallet.");
+            }
+
+        } catch (error) {
+            console.error("Error fetching user NFTs:", error);
+            setError("Error fetching NFTs. See console for details.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Filtrar assets baseado na policy selecionada
+    const filteredAssets = selectedPolicy === 'ALL' 
+        ? userNFTs.flatMap(p => p.assets)
+        : userNFTs.find(p => p.policyId === selectedPolicy)?.assets || [];
+
+    const totalNFTs = userNFTs.reduce((sum, p) => sum + p.assets.length, 0);
+
+    const policyColors: Record<string, string> = {
+        '8f80ebfaf62a8c33ae2adf047572604c74db8bc1daba2b43f9a65635': 'bg-purple-500',
+        'b7761c472eef3b6e0505441efaf940892bb59c01be96070b0a0a89b3': 'bg-blue-500',
+        'b9c188390e53e10833f17650ccf1b2704b2f67dccfae7352be3c9533': 'bg-green-500',
+    };
+
     return (
-        <div>
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
             <Header />
-            my MyStuff
+            
+            <div className="max-w-7xl mx-auto p-8">
+                {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                        My NFTs
+                    </h1>
+                    <p className="text-gray-400">
+                        Connect your Cardano wallet to view your NFTs from selected collections
+                    </p>
+                </div>
+
+                {/* Wallet Connection */}
+                <div className="mb-8 flex items-center gap-4">
+                    <AdaWalletConnector onWalletConnected={onWalletConnected} />
+                    
+                    {isConnected && network === 1 && (
+                        <button 
+                            onClick={fetchUserNFTs} 
+                            disabled={loading}
+                            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform ${
+                                loading 
+                                    ? 'bg-gray-600 cursor-not-allowed' 
+                                    : 'bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 hover:scale-105 shadow-lg'
+                            }`}
+                        >
+                            {loading ? (
+                                <div className="flex items-center gap-2">
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    <span>Loading NFTs...</span>
+                                </div>
+                            ) : (
+                                '🔍 View My NFTs'
+                            )}
+                        </button>
+                    )}
+                </div>
+
+                {/* Connected Address Display */}
+                {isConnected && address && (
+                    <div className="mb-8 p-4 bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-700">
+                        <p className="text-gray-400 text-sm mb-1">Connected Address</p>
+                        <p className="text-xs font-mono break-all">{address}</p>
+                    </div>
+                )}
+
+                {/* Error Message */}
+                {error && (
+                    <div className="mb-8 p-4 bg-red-500/20 border border-red-500 rounded-lg">
+                        <p className="text-red-300">❌ {error}</p>
+                    </div>
+                )}
+
+                {/* Results */}
+                {userNFTs.length > 0 && (
+                    <div className="space-y-8">
+                        {/* Summary */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700">
+                                <p className="text-gray-400 text-sm mb-1">Total NFTs</p>
+                                <p className="text-3xl font-bold text-green-400">{totalNFTs}</p>
+                            </div>
+                            <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700">
+                                <p className="text-gray-400 text-sm mb-1">Collections Found</p>
+                                <p className="text-3xl font-bold">{userNFTs.length}</p>
+                            </div>
+                            <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700">
+                                <p className="text-gray-400 text-sm mb-1">Filtered View</p>
+                                <p className="text-3xl font-bold text-blue-400">{filteredAssets.length}</p>
+                            </div>
+                        </div>
+
+                        {/* Collection Breakdown */}
+                        <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700">
+                            <h2 className="text-xl font-semibold mb-4">Collections</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {userNFTs.map((policyAssets) => (
+                                    <div 
+                                        key={policyAssets.policyId}
+                                        className="bg-gray-900/50 p-4 rounded-lg cursor-pointer hover:bg-gray-900 transition-colors"
+                                        onClick={() => setSelectedPolicy(policyAssets.policyId)}
+                                    >
+                                        <div className={`w-3 h-3 rounded-full ${policyColors[policyAssets.policyId]} mb-2`}></div>
+                                        <p className="text-gray-400 text-xs font-mono mb-2 break-all">
+                                            {policyAssets.policyId.substring(0, 20)}...
+                                        </p>
+                                        <p className="text-2xl font-bold">{policyAssets.assets.length} NFTs</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Filter Buttons */}
+                        <div className="flex gap-2 flex-wrap">
+                            <button
+                                onClick={() => setSelectedPolicy('ALL')}
+                                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                    selectedPolicy === 'ALL' 
+                                        ? 'bg-white text-gray-900' 
+                                        : 'bg-gray-700 hover:bg-gray-600'
+                                }`}
+                            >
+                                All ({totalNFTs})
+                            </button>
+                            {userNFTs.map((policyAssets) => (
+                                <button
+                                    key={policyAssets.policyId}
+                                    onClick={() => setSelectedPolicy(policyAssets.policyId)}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                        selectedPolicy === policyAssets.policyId 
+                                            ? `${policyColors[policyAssets.policyId]} text-white` 
+                                            : 'bg-gray-700 hover:bg-gray-600'
+                                    }`}
+                                >
+                                    {policyAssets.policyId.substring(0, 8)}... ({policyAssets.assets.length})
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* NFTs Grid */}
+                        <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-700 overflow-hidden">
+                            <div className="p-6 border-b border-gray-700">
+                                <h2 className="text-xl font-semibold">
+                                    Your NFTs ({filteredAssets.length})
+                                </h2>
+                            </div>
+                            
+                            <div className="max-h-[600px] overflow-y-auto">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
+                                    {filteredAssets.map((asset) => (
+                                        <div 
+                                            key={asset.assetId}
+                                            className="bg-gray-900/50 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors"
+                                        >
+                                            <div className="flex items-start justify-between mb-2">
+                                                <h3 className="font-semibold text-sm">
+                                                    {asset.metadata?.name || asset.assetName}
+                                                </h3>
+                                                <span className={`text-xs px-2 py-1 rounded ${policyColors[asset.policyId]} text-white`}>
+                                                    NFT
+                                                </span>
+                                            </div>
+                                            
+                                            {asset.metadata?.image && (
+                                                <div className="mb-3 rounded overflow-hidden bg-gray-800 h-48 flex items-center justify-center">
+                                                    <img 
+                                                        src={asset.metadata.image.replace('ipfs://', 'https://ipfs.io/ipfs/')} 
+                                                        alt={asset.metadata.name || asset.assetName}
+                                                        className="max-w-full max-h-full object-contain"
+                                                        onError={(e) => {
+                                                            e.currentTarget.style.display = 'none';
+                                                        }}
+                                                    />
+                                                </div>
+                                            )}
+                                            
+                                            <div className="space-y-1 text-xs">
+                                                {asset.metadata?.rarity && (
+                                                    <p className="text-gray-400">
+                                                        <span className="text-gray-500">Rarity:</span> {asset.metadata.rarity}
+                                                    </p>
+                                                )}
+                                                {asset.metadata?.edition && (
+                                                    <p className="text-gray-400">
+                                                        <span className="text-gray-500">Edition:</span> {asset.metadata.edition}
+                                                    </p>
+                                                )}
+                                                <p className="text-gray-400">
+                                                    <span className="text-gray-500">Asset ID:</span>
+                                                    <span className="font-mono text-xs block mt-1 break-all">
+                                                        {asset.assetId.substring(0, 30)}...
+                                                    </span>
+                                                </p>
+                                            </div>
+                                            
+                                            <details className="mt-3">
+                                                <summary className="text-xs text-blue-400 cursor-pointer hover:text-blue-300">
+                                                    View Metadata
+                                                </summary>
+                                                <pre className="text-xs mt-2 p-2 bg-gray-950 rounded overflow-x-auto max-h-40">
+                                                    {JSON.stringify(asset.metadata, null, 2)}
+                                                </pre>
+                                            </details>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Empty State */}
+                {!isConnected && (
+                    <div className="text-center py-16">
+                        <div className="text-6xl mb-4">🔗</div>
+                        <h2 className="text-2xl font-semibold mb-2">Connect Your Wallet</h2>
+                        <p className="text-gray-400">
+                            Connect your Cardano wallet to view your NFTs
+                        </p>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

@@ -55,7 +55,6 @@ export default function AdaWalletConnector({ onWalletConnected }: AdaWalletConne
                         return;
                     }
                     
-                    // Passamos o endereço hex - a conversão será feita no backend
                     setIsConnected(true);
                     setNetwork(networkId);
                     onWalletConnected(hexAddress, true, networkId);
