@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import Header from "@/components/layout/Header";
 import AdaWalletConnector from './components/ada/AdaWalletConnector';
@@ -28,9 +28,11 @@ export default function MyStuff() {
     const [isConnected, setIsConnected] = useState(false);
     const [network, setNetwork] = useState<number | undefined>();
     const [loading, setLoading] = useState(false);
+    const [syncing, setSyncing] = useState(false);
     const [userNFTs, setUserNFTs] = useState<PolicyAssets[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [selectedPolicy, setSelectedPolicy] = useState<string>('ALL');
+    const [dataSource, setDataSource] = useState<'cache' | 'blockchain' | null>(null);
     const { user } = useAuth();
 
     const onWalletConnected = (addr: string, connected: boolean, netId: number | undefined) => {
@@ -42,27 +44,71 @@ export default function MyStuff() {
         if (!connected) {
             setUserNFTs([]);
             setError(null);
+            setDataSource(null);
         }
     };
 
-    const fetchUserNFTs = async () => {
-        if (!address || !user) {
-            alert("Wallet not connected or user not authenticated.");
-            return;
+    // Carregar NFTs do cache automaticamente quando usuário estiver autenticado
+    useEffect(() => {
+        if (user) {
+            loadCachedNFTs();
         }
+    }, [user]);
+
+    const loadCachedNFTs = async () => {
+        if (!user) return;
 
         setLoading(true);
         setError(null);
 
         try {
             const token = await user.getIdToken();
+            const response = await fetch('/api/NFT/UserNFTs', {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
 
-            // Buscar NFTs de cada policy ID
+            if (response.ok) {
+                const data = await response.json();
+                if (data.collections && data.collections.length > 0) {
+                    const formattedCollections = data.collections.map((col: any) => ({
+                        policyId: col.policyId,
+                        assets: col.assets
+                    }));
+                    setUserNFTs(formattedCollections);
+                    setDataSource('cache');
+                } else {
+                    setUserNFTs([]);
+                    setDataSource('cache');
+                }
+            }
+        } catch (error) {
+            console.error('Error loading cached NFTs:', error);
+            // Não mostrar erro, apenas não carregar cache
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const syncWithBlockchain = async () => {
+        if (!address || !user) {
+            alert("Wallet not connected or user not authenticated.");
+            return;
+        }
+
+        setSyncing(true);
+        setError(null);
+
+        try {
+            const token = await user.getIdToken();
+
+            // Sincronizar NFTs de cada policy ID com blockchain
             const allAssets: PolicyAssets[] = [];
 
             for (const policyId of POLICY_IDS) {
                 try {
-                    const response = await fetch(`/api/NFT/blockfrost/UserAssets?address=${address}&policyId=${policyId}`, {
+                    const response = await fetch(`/api/NFT/blockfrost/UserAssets?address=${address}&policyId=${policyId}&sync=true`, {
                         headers: {
                             Authorization: `Bearer ${token}`,
                         },
@@ -78,21 +124,22 @@ export default function MyStuff() {
                         }
                     }
                 } catch (err) {
-                    console.error(`Error fetching assets for policy ${policyId}:`, err);
+                    console.error(`Error syncing assets for policy ${policyId}:`, err);
                 }
             }
 
             setUserNFTs(allAssets);
+            setDataSource('blockchain');
 
             if (allAssets.length === 0) {
                 setError("No NFTs found from the specified collections in this wallet.");
             }
 
         } catch (error) {
-            console.error("Error fetching user NFTs:", error);
-            setError("Error fetching NFTs. See console for details.");
+            console.error("Error syncing user NFTs:", error);
+            setError("Error syncing NFTs. See console for details.");
         } finally {
-            setLoading(false);
+            setSyncing(false);
         }
     };
 
@@ -125,28 +172,37 @@ export default function MyStuff() {
                 </div>
 
                 {/* Wallet Connection */}
-                <div className="mb-8 flex items-center gap-4">
+                <div className="mb-8 flex items-center gap-4 flex-wrap">
                     <AdaWalletConnector onWalletConnected={onWalletConnected} />
                     
                     {isConnected && network === 1 && (
                         <button 
-                            onClick={fetchUserNFTs} 
-                            disabled={loading}
+                            onClick={syncWithBlockchain} 
+                            disabled={syncing}
                             className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform ${
-                                loading 
+                                syncing 
                                     ? 'bg-gray-600 cursor-not-allowed' 
                                     : 'bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 hover:scale-105 shadow-lg'
                             }`}
                         >
-                            {loading ? (
+                            {syncing ? (
                                 <div className="flex items-center gap-2">
                                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                    <span>Loading NFTs...</span>
+                                    <span>Syncing...</span>
                                 </div>
                             ) : (
-                                '🔍 View My NFTs'
+                                '🔄 Sync with Blockchain'
                             )}
                         </button>
+                    )}
+
+                    {dataSource && (
+                        <div className="px-4 py-2 bg-gray-700 rounded-lg text-sm">
+                            <span className="text-gray-400">Data source:</span>{' '}
+                            <span className={dataSource === 'blockchain' ? 'text-green-400' : 'text-blue-400'}>
+                                {dataSource === 'blockchain' ? '🔗 Blockchain' : '💾 Cache'}
+                            </span>
+                        </div>
                     )}
                 </div>
 
@@ -304,12 +360,17 @@ export default function MyStuff() {
                 )}
 
                 {/* Empty State */}
-                {!isConnected && (
+                {userNFTs.length === 0 && !loading && !syncing && (
                     <div className="text-center py-16">
-                        <div className="text-6xl mb-4">🔗</div>
-                        <h2 className="text-2xl font-semibold mb-2">Connect Your Wallet</h2>
+                        <div className="text-6xl mb-4">{isConnected ? '📭' : '🔗'}</div>
+                        <h2 className="text-2xl font-semibold mb-2">
+                            {isConnected ? 'No NFTs Found' : 'View Your NFTs'}
+                        </h2>
                         <p className="text-gray-400">
-                            Connect your Cardano wallet to view your NFTs
+                            {isConnected 
+                                ? 'Connect your wallet and sync to discover your NFTs from the blockchain'
+                                : 'Your cached NFTs will appear here automatically when you log in'
+                            }
                         </p>
                     </div>
                 )}
