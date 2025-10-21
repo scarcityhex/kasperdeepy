@@ -23,15 +23,29 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-gray-800 shadow-md border-b border-gray-700">
+      <header className="bg-transparent shadow-md border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <div className="flex items-center">
-              <Link href="/">
+              <Link href="/" className="flex items-center gap-2">
+                <Image
+                  src="/Ada/CW5312noBG.png"
+                  alt="Left mascot"
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 object-contain"
+                />
                 <h1 className="text-2xl font-bold text-gray-100">
                   Kasper&Deepy
                 </h1>
+                <Image
+                  src="/Ada/CW7811noBG.png"
+                  alt="Right mascot"
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 object-contain -scale-x-100"
+                />
               </Link>
             </div>
 
