@@ -926,27 +926,27 @@ export default function MyStuff() {
 
                 {/* Results */}
                 {!loading && !syncing && userNFTs.length > 0 && (
-                    <div className="space-y-8">
+                    <div className="space-y-2">
                         {/* Summary */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="bg-gray-800/50 backdrop-blur-sm p-2 rounded-lg border border-gray-700">
                                 <p className="text-gray-400 text-sm mb-1">Total NFTs</p>
                                 <p className="text-3xl font-bold text-green-400">{totalNFTs}</p>
                             </div>
-                            <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700">
+                            <div className="bg-gray-800/50 backdrop-blur-sm p-2 rounded-lg border border-gray-700">
                                 <p className="text-gray-400 text-sm mb-1">Collections Found</p>
                                 <p className="text-3xl font-bold">{userNFTs.length}</p>
                             </div>
-                            <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700">
+                            <div className="bg-gray-800/50 backdrop-blur-sm p-2 rounded-lg border border-gray-700">
                                 <p className="text-gray-400 text-sm mb-1">Filtered View</p>
                                 <p className="text-3xl font-bold text-blue-400">{filteredAssets.length}</p>
                             </div>
                         </div>
 
                         {/* Collection Breakdown */}
-                        <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700">
-                            <h2 className="text-xl font-semibold mb-4">Collections</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-gray-800/50 backdrop-blur-sm p-2 rounded-lg border border-gray-700">
+                            <h2 className="text-xl font-semibold mb-2">Collections</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                                 {userNFTs.map((policyAssets) => (
                                     <div 
                                         key={policyAssets.policyId}
@@ -992,18 +992,18 @@ export default function MyStuff() {
 
                         {/* NFTs Grid */}
                         <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-700 overflow-hidden">
-                            <div className="p-6 border-b border-gray-700">
+                            <div className="p-2 border-b border-gray-700">
                                 <h2 className="text-xl font-semibold">
                                     Your NFTs ({filteredAssets.length})
                                 </h2>
                             </div>
                             
-                            <div className="max-h-[600px] overflow-y-auto">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
+                            <div className="max-h-[950px] overflow-y-auto">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 p-3">
                                     {filteredAssets.map((asset) => (
                                         <div 
                                             key={asset.assetId}
-                                            className="bg-gray-900/50 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors"
+                                            className="bg-gray-900/50 rounded-lg p-2 border border-gray-700 hover:border-gray-600 transition-colors"
                                         >
                                             <div className="flex items-start justify-between mb-2">
                                                 <h3 className="font-semibold text-sm">
