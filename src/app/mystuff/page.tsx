@@ -505,11 +505,24 @@ export default function MyStuff() {
 
     const totalNFTs = userNFTs.reduce((sum, p) => sum + p.assets.length, 0);
 
-    const policyColors: Record<string, string> = {
+    const defaultPolicyColors: Record<string, string> = {
         '8f80ebfaf62a8c33ae2adf047572604c74db8bc1daba2b43f9a65635': 'bg-purple-500',
         'b7761c472eef3b6e0505441efaf940892bb59c01be96070b0a0a89b3': 'bg-blue-500',
         'b9c188390e53e10833f17650ccf1b2704b2f67dccfae7352be3c9533': 'bg-green-500',
     };
+
+    // Função para obter cor de uma policy (usa cor padrão ou gera uma para customizadas)
+    const getPolicyColor = (policyId: string): string => {
+        return defaultPolicyColors[policyId] || 'bg-orange-500';
+    };
+
+    // Função para obter nome da coleção
+    const getCollectionName = (policyId: string): string => {
+        const collection = collections.find(c => c.policyId === policyId);
+        return collection?.name || `${policyId.substring(0, 8)}...`;
+    };
+
+    const policyColors = defaultPolicyColors;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
@@ -944,11 +957,11 @@ export default function MyStuff() {
                                     onClick={() => setSelectedPolicy(policyAssets.policyId)}
                                     className={`px-4 py-2 rounded-lg font-medium transition-all ${
                                         selectedPolicy === policyAssets.policyId 
-                                            ? `${policyColors[policyAssets.policyId]} text-white` 
+                                            ? `${getPolicyColor(policyAssets.policyId)} text-white` 
                                             : 'bg-gray-700 hover:bg-gray-600'
                                     }`}
                                 >
-                                    {policyAssets.policyId.substring(0, 8)}... ({policyAssets.assets.length})
+                                    {getCollectionName(policyAssets.policyId)} ({policyAssets.assets.length})
                                 </button>
                             ))}
                         </div>
@@ -977,18 +990,42 @@ export default function MyStuff() {
                                                 </span>
                                             </div>
                                             
-                                            {asset.metadata?.image && (
-                                                <div className="mb-3 rounded overflow-hidden bg-gray-800 h-48 flex items-center justify-center">
-                                                    <img 
-                                                        src={asset.metadata.image.replace('ipfs://', 'https://ipfs.io/ipfs/')} 
-                                                        alt={asset.metadata.name || asset.assetName}
-                                                        className="max-w-full max-h-full object-contain"
-                                                        onError={(e) => {
-                                                            e.currentTarget.style.display = 'none';
-                                                        }}
-                                                    />
-                                                </div>
-                                            )}
+                                            {(() => {
+                                                // Tentar diferentes formatos de URL de imagem
+                                                let imageUrl = asset.metadata?.image;
+                                                
+                                                // Verificar se tem array de files
+                                                if (!imageUrl && asset.metadata?.files && asset.metadata.files.length > 0) {
+                                                    imageUrl = asset.metadata.files[0].src;
+                                                }
+                                                
+                                                // Verificar se tem mediaType image
+                                                if (!imageUrl && asset.metadata?.files) {
+                                                    const imageFile = asset.metadata.files.find((f: any) => 
+                                                        f.mediaType?.startsWith('image/')
+                                                    );
+                                                    if (imageFile) imageUrl = imageFile.src;
+                                                }
+                                                
+                                                if (imageUrl) {
+                                                    // Converter IPFS para HTTP
+                                                    const httpUrl = imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                                                    
+                                                    return (
+                                                        <div className="mb-3 rounded overflow-hidden bg-gray-800 h-48 flex items-center justify-center">
+                                                            <img 
+                                                                src={httpUrl} 
+                                                                alt={asset.metadata?.name || asset.assetName}
+                                                                className="max-w-full max-h-full object-contain"
+                                                                onError={(e) => {
+                                                                    e.currentTarget.style.display = 'none';
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
                                             
                                             <div className="space-y-1 text-xs">
                                                 {asset.metadata?.rarity && (
