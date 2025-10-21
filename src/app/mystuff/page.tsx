@@ -41,7 +41,9 @@ export default function MyStuff() {
     const [selectedPolicy, setSelectedPolicy] = useState<string>('ALL');
     const [dataSource, setDataSource] = useState<'cache' | 'blockchain' | null>(null);
     const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
-    const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
+    const [selectedAddress, setSelectedAddress] = useState<string | null>('ALL');
+    const [loadingAddresses, setLoadingAddresses] = useState(false);
+    const [savingAddress, setSavingAddress] = useState(false);
     const [newAddressInput, setNewAddressInput] = useState("");
     const [newAddressLabel, setNewAddressLabel] = useState("");
     const [showAddAddressForm, setShowAddAddressForm] = useState(false);
@@ -76,6 +78,7 @@ export default function MyStuff() {
     const loadSavedAddresses = async () => {
         if (!user) return;
 
+        setLoadingAddresses(true);
         try {
             const token = await user.getIdToken();
             const response = await fetch('/api/NFT/UserAddresses', {
@@ -90,6 +93,8 @@ export default function MyStuff() {
             }
         } catch (error) {
             console.error('Error loading saved addresses:', error);
+        } finally {
+            setLoadingAddresses(false);
         }
     };
 
@@ -101,6 +106,8 @@ export default function MyStuff() {
             return;
         }
 
+        setSavingAddress(true);
+        setError(null);
         try {
             const token = await user.getIdToken();
             const response = await fetch('/api/NFT/UserAddresses', {
@@ -128,6 +135,8 @@ export default function MyStuff() {
         } catch (error) {
             console.error('Error adding address:', error);
             setError('Error adding address');
+        } finally {
+            setSavingAddress(false);
         }
     };
 
@@ -157,6 +166,7 @@ export default function MyStuff() {
     const saveConnectedAddress = async () => {
         if (!connectedAddress || !user) return;
 
+        setSavingAddress(true);
         setError(null);
 
         try {
@@ -187,6 +197,8 @@ export default function MyStuff() {
         } catch (error) {
             console.error('Error saving connected address:', error);
             setError('Error saving connected address');
+        } finally {
+            setSavingAddress(false);
         }
     };
 
@@ -198,7 +210,7 @@ export default function MyStuff() {
 
         try {
             const token = await user.getIdToken();
-            const url = selectedAddress 
+            const url = (selectedAddress && selectedAddress !== 'ALL')
                 ? `/api/NFT/UserNFTs?address=${encodeURIComponent(selectedAddress)}`
                 : '/api/NFT/UserNFTs';
             
@@ -230,11 +242,62 @@ export default function MyStuff() {
         }
     };
 
+    const syncAllAddresses = async () => {
+        if (!user) return;
+        
+        setSyncing(true);
+        setError(null);
+
+        try {
+            const token = await user.getIdToken();
+
+            // Sincronizar cada endereço salvo
+            for (const savedAddr of savedAddresses) {
+                for (const policyId of POLICY_IDS) {
+                    try {
+                        await fetch(`/api/NFT/blockfrost/UserAssets?address=${savedAddr.address}&policyId=${policyId}&sync=true`, {
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                            },
+                        });
+                    } catch (err) {
+                        console.error(`Error syncing ${savedAddr.label}:`, err);
+                    }
+                }
+            }
+
+            // Após sincronizar todos, recarregar do cache
+            await loadCachedNFTs();
+            setDataSource('blockchain');
+
+        } catch (error) {
+            console.error("Error syncing all addresses:", error);
+            setError("Error syncing all addresses. See console for details.");
+        } finally {
+            setSyncing(false);
+        }
+    };
+
     const syncWithBlockchain = async () => {
+        if (!user) {
+            alert("User not authenticated.");
+            return;
+        }
+
+        // Se "All Addresses" estiver selecionado, sincronizar todos os endereços salvos
+        if (selectedAddress === 'ALL') {
+            if (savedAddresses.length === 0) {
+                alert("No saved addresses to sync. Please add or connect a wallet first.");
+                return;
+            }
+            await syncAllAddresses();
+            return;
+        }
+
         const addressToSync = selectedAddress || connectedAddress;
         
-        if (!addressToSync || !user) {
-            alert("No address selected or user not authenticated.");
+        if (!addressToSync) {
+            alert("No address selected.");
             return;
         }
 
@@ -387,9 +450,21 @@ export default function MyStuff() {
                                 <div className="flex gap-2">
                                     <button
                                         onClick={addAddress}
-                                        className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg text-sm font-medium transition-colors"
+                                        disabled={savingAddress}
+                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                            savingAddress 
+                                                ? 'bg-gray-600 cursor-not-allowed' 
+                                                : 'bg-green-500 hover:bg-green-600'
+                                        }`}
                                     >
-                                        Save Address
+                                        {savingAddress ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                <span>Saving...</span>
+                                            </div>
+                                        ) : (
+                                            'Save Address'
+                                        )}
                                     </button>
                                     <button
                                         onClick={() => {
@@ -398,7 +473,8 @@ export default function MyStuff() {
                                             setNewAddressLabel("");
                                             setError(null);
                                         }}
-                                        className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
+                                        disabled={savingAddress}
+                                        className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                                     >
                                         Cancel
                                     </button>
@@ -418,18 +494,58 @@ export default function MyStuff() {
                                 {!savedAddresses.some(addr => addr.address === connectedAddress) && (
                                     <button
                                         onClick={saveConnectedAddress}
-                                        className="px-3 py-1 bg-green-500 hover:bg-green-600 rounded text-xs font-medium transition-colors"
+                                        disabled={savingAddress}
+                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                            savingAddress 
+                                                ? 'bg-gray-600 cursor-not-allowed' 
+                                                : 'bg-green-500 hover:bg-green-600'
+                                        }`}
                                     >
-                                        💾 Save
+                                        {savingAddress ? (
+                                            <div className="flex items-center gap-1">
+                                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                            </div>
+                                        ) : (
+                                            '💾 Save'
+                                        )}
                                     </button>
                                 )}
                             </div>
                         </div>
                     )}
 
+                    {/* Loading Spinner */}
+                    {loadingAddresses && (
+                        <div className="flex items-center justify-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                            <span className="ml-3 text-gray-400">Loading addresses...</span>
+                        </div>
+                    )}
+
                     {/* Saved Addresses */}
-                    {savedAddresses.length > 0 && (
+                    {!loadingAddresses && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* All Addresses Card */}
+                            <div
+                                className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                                    selectedAddress === 'ALL'
+                                        ? 'bg-gradient-to-br from-purple-900/30 to-blue-900/30 border-purple-500'
+                                        : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
+                                }`}
+                                onClick={() => setSelectedAddress('ALL')}
+                            >
+                                <div className="flex items-start justify-between mb-2">
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-sm mb-1">🌐 All Addresses</p>
+                                        <p className="text-xs text-gray-400">View NFTs from all saved addresses</p>
+                                    </div>
+                                </div>
+                                {selectedAddress === 'ALL' && (
+                                    <div className="mt-2 pt-2 border-t border-purple-500/30">
+                                        <p className="text-xs text-purple-400">✓ Selected</p>
+                                    </div>
+                                )}
+                            </div>
                             {savedAddresses.map((addr) => (
                                 <div
                                     key={addr.address}
@@ -465,7 +581,7 @@ export default function MyStuff() {
                         </div>
                     )}
 
-                    {savedAddresses.length === 0 && !isConnected && (
+                    {!loadingAddresses && savedAddresses.length === 0 && !isConnected && (
                         <div className="text-center py-8 bg-gray-800/30 rounded-lg border border-gray-700">
                             <p className="text-gray-400">No saved addresses yet. Connect a wallet or add an address manually.</p>
                         </div>
@@ -479,8 +595,25 @@ export default function MyStuff() {
                     </div>
                 )}
 
+                {/* Loading NFTs */}
+                {loading && (
+                    <div className="flex flex-col items-center justify-center py-16">
+                        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mb-4"></div>
+                        <p className="text-gray-400 text-lg">Loading NFTs...</p>
+                    </div>
+                )}
+
+                {/* Syncing NFTs */}
+                {syncing && !loading && (
+                    <div className="flex flex-col items-center justify-center py-16">
+                        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-green-500 mb-4"></div>
+                        <p className="text-gray-400 text-lg">Syncing with blockchain...</p>
+                        <p className="text-gray-500 text-sm mt-2">This may take a few moments</p>
+                    </div>
+                )}
+
                 {/* Results */}
-                {userNFTs.length > 0 && (
+                {!loading && !syncing && userNFTs.length > 0 && (
                     <div className="space-y-8">
                         {/* Summary */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -620,14 +753,22 @@ export default function MyStuff() {
                 {/* Empty State */}
                 {userNFTs.length === 0 && !loading && !syncing && (
                     <div className="text-center py-16">
-                        <div className="text-6xl mb-4">{isConnected ? '📭' : '🔗'}</div>
+                        <div className="text-6xl mb-4">
+                            {selectedAddress === 'ALL' ? '🌐' : (isConnected ? '📭' : '🔗')}
+                        </div>
                         <h2 className="text-2xl font-semibold mb-2">
-                            {isConnected ? 'No NFTs Found' : 'View Your NFTs'}
+                            {selectedAddress === 'ALL' 
+                                ? 'No NFTs Found' 
+                                : (isConnected ? 'No NFTs Found' : 'View Your NFTs')
+                            }
                         </h2>
-                        <p className="text-gray-400">
-                            {isConnected 
-                                ? 'Connect your wallet and sync to discover your NFTs from the blockchain'
-                                : 'Your cached NFTs will appear here automatically when you log in'
+                        <p className="text-gray-400 max-w-md mx-auto">
+                            {selectedAddress === 'ALL' 
+                                ? 'No NFTs found across all your saved addresses. Try syncing with the blockchain or add more addresses.'
+                                : (isConnected 
+                                    ? 'Connect your wallet and sync to discover your NFTs from the blockchain'
+                                    : 'Select an address or "All Addresses" to view your NFTs. Your cached NFTs will load automatically.'
+                                )
                             }
                         </p>
                     </div>
